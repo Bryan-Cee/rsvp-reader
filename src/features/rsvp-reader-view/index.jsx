@@ -23,6 +23,20 @@ const OPENED_BOOKS_KEY = "speedReader:openedBooks";
 const BOOK_CONTENT_CACHE_PREFIX = "speedReader:bookContent:";
 const PROGRESS_STORAGE_PREFIX = "speedReader:progress:";
 
+const buildBaseReadingState = () => ({
+  isPlaying: false,
+  currentWordIndex: 0,
+  readingSpeed: 350,
+  wordsPerFrame: 1,
+  fontSize: 16,
+  fontFamily: "source-sans",
+  theme: "light",
+  showFocalPoint: true,
+  smartHighlighting: true,
+  pauseOnPunctuation: false,
+  pauseOnLongWords: false,
+});
+
 const RSVPReaderView = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -40,38 +54,36 @@ const RSVPReaderView = () => {
   const [contentError, setContentError] = useState(null);
   const [retrySignal, setRetrySignal] = useState(0);
 
-  const [readingState, setReadingState] = useState(() => {
-    const persisted = loadReaderSettings();
-
-    return {
-      isPlaying: false,
-      currentWordIndex: 0,
-      readingSpeed: persisted?.readingSpeed ?? 350,
-      wordsPerFrame: persisted?.wordsPerFrame ?? 1,
-      fontSize: persisted?.fontSize ?? 16,
-      fontFamily: persisted?.fontFamily || "source-sans",
-      theme: persisted?.theme || "light",
-      showFocalPoint:
-        typeof persisted?.showFocalPoint === "boolean"
-          ? persisted.showFocalPoint
-          : true,
-      smartHighlighting:
-        typeof persisted?.smartHighlighting === "boolean"
-          ? persisted.smartHighlighting
-          : true,
-      pauseOnPunctuation:
-        typeof persisted?.pauseOnPunctuation === "boolean"
-          ? persisted.pauseOnPunctuation
-          : false,
-      pauseOnLongWords:
-        typeof persisted?.pauseOnLongWords === "boolean"
-          ? persisted.pauseOnLongWords
-          : false,
-    };
-  });
+  const [readingState, setReadingState] = useState(buildBaseReadingState);
+  const [hasHydratedSettings, setHasHydratedSettings] = useState(false);
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const playbackTimeoutRef = useRef(null);
+
+  const persistableSettings = useMemo(
+    () => ({
+      readingSpeed: readingState?.readingSpeed,
+      wordsPerFrame: readingState?.wordsPerFrame,
+      fontSize: readingState?.fontSize,
+      fontFamily: readingState?.fontFamily,
+      theme: readingState?.theme,
+      pauseOnPunctuation: readingState?.pauseOnPunctuation,
+      pauseOnLongWords: readingState?.pauseOnLongWords,
+      showFocalPoint: readingState?.showFocalPoint,
+      smartHighlighting: readingState?.smartHighlighting,
+    }),
+    [
+      readingState?.readingSpeed,
+      readingState?.wordsPerFrame,
+      readingState?.fontSize,
+      readingState?.fontFamily,
+      readingState?.theme,
+      readingState?.pauseOnPunctuation,
+      readingState?.pauseOnLongWords,
+      readingState?.showFocalPoint,
+      readingState?.smartHighlighting,
+    ],
+  );
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -275,6 +287,42 @@ const RSVPReaderView = () => {
   useEffect(() => {
     applyThemeFromSettings(readingState?.theme);
   }, [readingState?.theme]);
+
+  useEffect(() => {
+    const persisted = loadReaderSettings();
+
+    setReadingState((prev) => ({
+      ...prev,
+      readingSpeed: persisted?.readingSpeed ?? prev.readingSpeed,
+      wordsPerFrame: persisted?.wordsPerFrame ?? prev.wordsPerFrame,
+      fontSize: persisted?.fontSize ?? prev.fontSize,
+      fontFamily: persisted?.fontFamily || prev.fontFamily,
+      theme: persisted?.theme || prev.theme,
+      showFocalPoint:
+        typeof persisted?.showFocalPoint === "boolean"
+          ? persisted.showFocalPoint
+          : prev.showFocalPoint,
+      smartHighlighting:
+        typeof persisted?.smartHighlighting === "boolean"
+          ? persisted.smartHighlighting
+          : prev.smartHighlighting,
+      pauseOnPunctuation:
+        typeof persisted?.pauseOnPunctuation === "boolean"
+          ? persisted.pauseOnPunctuation
+          : prev.pauseOnPunctuation,
+      pauseOnLongWords:
+        typeof persisted?.pauseOnLongWords === "boolean"
+          ? persisted.pauseOnLongWords
+          : prev.pauseOnLongWords,
+    }));
+
+    setHasHydratedSettings(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hasHydratedSettings) return;
+    saveReaderSettings(persistableSettings);
+  }, [persistableSettings, hasHydratedSettings]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -483,28 +531,22 @@ const RSVPReaderView = () => {
   return (
     <div className="min-h-screen bg-background flex flex-col relative">
       <AppHeader
-        actions={
-          <>
-            <Button
-              variant="ghost"
-              size="sm"
-              iconName="Settings"
-              iconPosition="left"
-              onClick={() => setIsSettingsOpen(true)}
-            >
-              Settings
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              iconName="ArrowLeft"
-              iconPosition="left"
-              onClick={() => router.push("/main-reader-interface")}
-            >
-              Library
-            </Button>
-          </>
-        }
+        navigationItems={[
+          {
+            key: "settings",
+            label: "Settings",
+            iconName: "Settings",
+            variant: "ghost",
+            onClick: () => setIsSettingsOpen(true),
+          },
+          {
+            key: "library",
+            label: "Library",
+            iconName: "ArrowLeft",
+            variant: "outline",
+            onClick: () => router.push("/main-reader-interface"),
+          },
+        ]}
       />
       <main className="flex-1 flex flex-col pt-16 md:pt-20">
         <RSVPDisplay

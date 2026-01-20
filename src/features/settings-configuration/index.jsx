@@ -94,28 +94,22 @@ const SettingsConfiguration = () => {
   return (
     <div className="min-h-screen bg-background">
       <AppHeader
-        actions={
-          <>
-            <Button
-              variant="outline"
-              size="sm"
-              iconName="ArrowLeft"
-              iconPosition="left"
-              onClick={handleReturnToLibrary}
-            >
-              Library
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              iconName="BookOpen"
-              iconPosition="left"
-              onClick={handleReturnToReader}
-            >
-              Reader
-            </Button>
-          </>
-        }
+        navigationItems={[
+          {
+            key: "library",
+            label: "Library",
+            iconName: "ArrowLeft",
+            variant: "outline",
+            onClick: handleReturnToLibrary,
+          },
+          {
+            key: "reader",
+            label: "Reader",
+            iconName: "BookOpen",
+            variant: "outline",
+            onClick: handleReturnToReader,
+          },
+        ]}
       />
 
       <main className="pt-20 pb-8 px-4 md:px-6 lg:px-8">

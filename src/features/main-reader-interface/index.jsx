@@ -10,7 +10,7 @@ import FileUploadZone from "./components/FileUploadZone";
 import LibrarySection from "./components/LibrarySection";
 import CategoryFilters from "./components/CategoryFilter";
 
-const TARGET_BOOK_COUNT = 60;
+const TARGET_BOOK_COUNT = 10;
 const LIBRARY_STORAGE_KEY = "speedReader:libraryBooks";
 const BOOK_CONTENT_CACHE_PREFIX = "speedReader:bookContent:";
 const PROGRESS_STORAGE_PREFIX = "speedReader:progress:";
@@ -234,17 +234,15 @@ const MainReaderInterface = () => {
   return (
     <div className="min-h-screen bg-background">
       <AppHeader
-        actions={
-          <Button
-            variant="outline"
-            size="sm"
-            iconName="Settings"
-            iconPosition="left"
-            onClick={handleSettingsClick}
-          >
-            Settings
-          </Button>
-        }
+        navigationItems={[
+          {
+            key: "settings",
+            label: "Settings",
+            iconName: "Settings",
+            variant: "outline",
+            onClick: handleSettingsClick,
+          },
+        ]}
       />
       <main className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-6 md:py-8 lg:py-12 space-y-6 md:space-y-8 lg:space-y-12">
         <section>
