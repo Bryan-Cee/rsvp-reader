@@ -51,8 +51,28 @@ const BookCard = ({ book }) => {
     return "bg-success";
   };
 
+  const fallbackCover = "/assets/images/no_image.png";
+  const coverImageSrc = book?.coverImage || fallbackCover;
+  const coverImageAlt =
+    book?.coverImageAlt ||
+    (book?.title ? `Cover art for ${book.title}` : "Book cover placeholder");
+
   return (
     <div className="group w-full bg-card rounded-lg md:rounded-xl border border-border/60 overflow-hidden hover:shadow-sm hover:border-border hover:border-primary/30 transition-all duration-300">
+      <div className="relative w-full bg-muted/50 aspect-[3/4] overflow-hidden">
+        <img
+          src={coverImageSrc}
+          alt={coverImageAlt}
+          loading="lazy"
+          decoding="async"
+          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+          onError={(event) => {
+            if (event?.currentTarget?.src !== fallbackCover) {
+              event.currentTarget.src = fallbackCover;
+            }
+          }}
+        />
+      </div>
       <div className="p-4 md:p-5 space-y-3">
         <div className="space-y-1">
           <h3 className="text-base md:text-lg font-semibold text-foreground line-clamp-2 group-hover:text-primary transition-colors duration-200">

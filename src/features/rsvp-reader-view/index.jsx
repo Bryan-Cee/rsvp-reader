@@ -38,6 +38,7 @@ const RSVPReaderView = () => {
   });
   const [isContentLoading, setIsContentLoading] = useState(true);
   const [contentError, setContentError] = useState(null);
+  const [retrySignal, setRetrySignal] = useState(0);
 
   const [readingState, setReadingState] = useState(() => {
     const persisted = loadReaderSettings();
@@ -172,6 +173,7 @@ const RSVPReaderView = () => {
 
     const fetchContent = async () => {
       setIsContentLoading(true);
+      setContentError(null);
       let lastError = null;
 
       for (const url of candidateUrls) {
@@ -179,6 +181,13 @@ const RSVPReaderView = () => {
           const proxyUrl = `/api/book-text?url=${encodeURIComponent(url)}`;
           const response = await fetch(proxyUrl, { cache: "no-store" });
           if (!response?.ok) {
+            if (response?.status === 429) {
+              const rateLimitError = new Error(
+                "We're hitting the Project Gutenberg rate limit. Please wait a moment and try again.",
+              );
+              rateLimitError.code = 429;
+              throw rateLimitError;
+            }
             throw new Error("Unable to download book content.");
           }
           const text = await response.text();
@@ -217,7 +226,9 @@ const RSVPReaderView = () => {
 
       if (didCancel) return;
       console.error("Failed to load book content", lastError);
-      setContentError(lastError?.message ?? "Failed to load book content.");
+      setContentError(
+        lastError?.message ?? "Failed to load book content. Please try again.",
+      );
       applyContent(DEFAULT_BOOK_CONTENT);
     };
 
@@ -226,7 +237,17 @@ const RSVPReaderView = () => {
     return () => {
       didCancel = true;
     };
-  }, [bookMeta, searchParams]);
+  }, [bookMeta, searchParams, retrySignal]);
+
+  const handleRetryContentLoad = useCallback(() => {
+    setContentError(null);
+    setIsContentLoading(true);
+    setRetrySignal((prev) => prev + 1);
+  }, []);
+
+  const handleNavigateHome = useCallback(() => {
+    router.push("/main-reader-interface");
+  }, [router]);
 
   const words = bookData?.content?.split(/\s+/);
   const currentWord = words
@@ -530,6 +551,46 @@ const RSVPReaderView = () => {
               We are downloading the plain-text edition and preparing it for the
               RSVP reader.
             </p>
+          </div>
+        </div>
+      )}
+
+      {contentError && !isContentLoading && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center px-4 py-8 bg-background/95 backdrop-blur"
+          role="alertdialog"
+          aria-modal="true"
+          aria-live="assertive"
+        >
+          <div className="w-full max-w-md bg-card border border-border/80 rounded-xl shadow-lg p-6 space-y-4 text-center">
+            <div className="space-y-2">
+              <p className="text-lg font-semibold text-foreground">
+                We couldn’t load that book
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {contentError}
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                variant="default"
+                className="flex-1"
+                iconName="RotateCw"
+                iconPosition="left"
+                onClick={handleRetryContentLoad}
+              >
+                Retry download
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1"
+                iconName="Home"
+                iconPosition="left"
+                onClick={handleNavigateHome}
+              >
+                Back to library
+              </Button>
+            </div>
           </div>
         </div>
       )}
