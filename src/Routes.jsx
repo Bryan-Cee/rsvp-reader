@@ -9,7 +9,7 @@ import RSVPReaderView from './pages/rsvp-reader-view';
 
 const Routes = () => {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={import.meta.env.PROD ? import.meta.env.BASE_URL : '/'}>
       <ErrorBoundary>
       <ScrollToTop />
       <RouterRoutes>
