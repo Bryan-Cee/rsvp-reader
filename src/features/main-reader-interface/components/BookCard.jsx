@@ -1,15 +1,15 @@
-import { useRouter } from 'next/navigation';
-import Icon from '../../../components/AppIcon';
-import Image from '../../../components/AppImage';
-import Button from '../../../components/ui/Button';
+import { useRouter } from "next/navigation";
+import Icon from "../../../components/AppIcon";
+import Image from "../../../components/AppImage";
+import Button from "../../../components/ui/Button";
 
 const BookCard = ({ book }) => {
   const router = useRouter();
 
   const handleReadClick = () => {
     const params = new URLSearchParams({
-      bookTitle: book?.title ?? '',
-      bookAuthor: book?.author ?? '',
+      bookTitle: book?.title ?? "",
+      bookAuthor: book?.author ?? "",
     });
     router.push(`/rsvp-reader-view?${params.toString()}`);
   };
@@ -24,10 +24,10 @@ const BookCard = ({ book }) => {
   };
 
   const getProgressColor = (progress) => {
-    if (progress === 0) return 'bg-muted';
-    if (progress < 30) return 'bg-warning';
-    if (progress < 70) return 'bg-secondary';
-    return 'bg-success';
+    if (progress === 0) return "bg-muted";
+    if (progress < 30) return "bg-warning";
+    if (progress < 70) return "bg-secondary";
+    return "bg-success";
   };
 
   return (
@@ -84,14 +84,14 @@ const BookCard = ({ book }) => {
         )}
 
         <Button
-          variant={book?.progress > 0 ? 'default' : 'outline'}
+          variant={book?.progress > 0 ? "default" : "outline"}
           size="sm"
-          iconName={book?.progress > 0 ? 'PlayCircle' : 'BookOpen'}
+          iconName={book?.progress > 0 ? "PlayCircle" : "BookOpen"}
           iconPosition="left"
           fullWidth
           onClick={handleReadClick}
         >
-          {book?.progress > 0 ? 'Continue Reading' : 'Start Reading'}
+          {book?.progress > 0 ? "Continue Reading" : "Start Reading"}
         </Button>
       </div>
     </div>

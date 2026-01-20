@@ -5,7 +5,8 @@ import ThemeInitializer from "../components/ThemeInitializer";
 
 export const metadata = {
   title: "SpeedReader",
-  description: "High-velocity RSVP reading experience with customizable settings.",
+  description:
+    "High-velocity RSVP reading experience with customizable settings.",
 };
 
 export default function RootLayout({ children }) {

@@ -45,12 +45,12 @@ npm run lint       # run ESLint with Next.js rules
 
 ### Routing overview
 
-| Route | File |
-| --- | --- |
-| `/` and `/main-reader-interface` | `src/app/page.jsx`, `src/app/main-reader-interface/page.jsx`
-| `/settings-configuration` | `src/app/settings-configuration/page.jsx`
-| `/rsvp-reader-view` | `src/app/rsvp-reader-view/page.jsx`
-| 404 fallback | `src/app/not-found.jsx`
+| Route                            | File                                                         |
+| -------------------------------- | ------------------------------------------------------------ |
+| `/` and `/main-reader-interface` | `src/app/page.jsx`, `src/app/main-reader-interface/page.jsx` |
+| `/settings-configuration`        | `src/app/settings-configuration/page.jsx`                    |
+| `/rsvp-reader-view`              | `src/app/rsvp-reader-view/page.jsx`                          |
+| 404 fallback                     | `src/app/not-found.jsx`                                      |
 
 Each page imports a client component from `src/features`, keeping data fetching/layout concerns in the App Router while the UI stays interactive.
 
