@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import RSVPReaderView from "../../features/rsvp-reader-view";
 
 export const metadata = {
@@ -7,5 +8,9 @@ export const metadata = {
 };
 
 export default function RSVPReaderPage() {
-  return <RSVPReaderView />;
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-background" />}>
+      <RSVPReaderView />
+    </Suspense>
+  );
 }
