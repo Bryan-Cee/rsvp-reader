@@ -1,65 +1,79 @@
-import { useState } from 'react';
-import Icon from '../../../components/AppIcon';
-import Button from '../../../components/ui/Button';
-import Select from '../../../components/ui/Select';
+import { useCallback, useState } from "react";
+import Icon from "../../../components/AppIcon";
+import Button from "../../../components/ui/Button";
+import Select from "../../../components/ui/Select";
+
+const SPEED_PRESETS = [
+  { value: 150, label: "Slow (150 WPM)" },
+  { value: 250, label: "Normal (250 WPM)" },
+  { value: 350, label: "Fast (350 WPM)" },
+  { value: 500, label: "Rapid (500 WPM)" },
+  { value: 700, label: "Very Fast (700 WPM)" },
+];
+
+const WORDS_PER_FRAME_OPTIONS = [
+  { value: 1, label: "1 Word" },
+  { value: 2, label: "2 Words" },
+  { value: 3, label: "3 Words" },
+];
+
+const FONT_SIZE_OPTIONS = [
+  { value: 12, label: "SM (12px)" },
+  { value: 16, label: "MD (16px)" },
+  { value: 20, label: "LG (20px)" },
+  { value: 24, label: "XL (24px)" },
+];
+
+const FONT_FAMILY_OPTIONS = [
+  { value: "source-sans", label: "Sans Serif" },
+  { value: "crimson", label: "Serif" },
+  { value: "jetbrains", label: "Monospace" },
+];
 
 const ControlPanel = ({
   readingSpeed = 350,
   wordsPerFrame = 1,
   fontSize = 16,
-  fontFamily = 'source-sans',
+  fontFamily = "source-sans",
   onSpeedChange,
   onWordsPerFrameChange,
   onFontSizeChange,
-  onFontFamilyChange
+  onFontFamilyChange,
 }) => {
   const [isExpanded, setIsExpanded] = useState(true);
 
-  const speedPresets = [
-    { value: 150, label: 'Slow (150 WPM)' },
-    { value: 250, label: 'Normal (250 WPM)' },
-    { value: 350, label: 'Fast (350 WPM)' },
-    { value: 500, label: 'Rapid (500 WPM)' },
-    { value: 700, label: 'Very Fast (700 WPM)' }
-  ];
+  const speedPresets = SPEED_PRESETS;
+  const wordsPerFrameOptions = WORDS_PER_FRAME_OPTIONS;
+  const fontSizeOptions = FONT_SIZE_OPTIONS;
+  const fontFamilyOptions = FONT_FAMILY_OPTIONS;
 
-  const wordsPerFrameOptions = [
-    { value: 1, label: '1 Word' },
-    { value: 2, label: '2 Words' },
-    { value: 3, label: '3 Words' }
-  ];
+  const handleSpeedSliderChange = useCallback(
+    (e) => {
+      if (onSpeedChange) {
+        onSpeedChange(parseInt(e?.target?.value, 10));
+      }
+    },
+    [onSpeedChange],
+  );
 
-  const fontSizeOptions = [
-    { value: 12, label: 'SM (12px)' },
-    { value: 16, label: 'MD (16px)' },
-    { value: 20, label: 'LG (20px)' },
-    { value: 24, label: 'XL (24px)' }
-  ];
+  const handleSpeedPreset = useCallback(
+    (speed) => {
+      if (onSpeedChange) {
+        onSpeedChange(speed);
+      }
+    },
+    [onSpeedChange],
+  );
 
-  const fontFamilyOptions = [
-    { value: 'source-sans', label: 'Sans Serif' },
-    { value: 'crimson', label: 'Serif' },
-    { value: 'jetbrains', label: 'Monospace' }
-  ];
-
-  const handleSpeedSliderChange = (e) => {
-    if (onSpeedChange) {
-      onSpeedChange(parseInt(e?.target?.value));
-    }
-  };
-
-  const handleSpeedPreset = (speed) => {
-    if (onSpeedChange) {
-      onSpeedChange(speed);
-    }
-  };
-
-  const handleSpeedAdjust = (delta) => {
-    const newSpeed = Math.max(50, Math.min(1000, readingSpeed + delta));
-    if (onSpeedChange) {
-      onSpeedChange(newSpeed);
-    }
-  };
+  const handleSpeedAdjust = useCallback(
+    (delta) => {
+      const newSpeed = Math.max(50, Math.min(1000, readingSpeed + delta));
+      if (onSpeedChange) {
+        onSpeedChange(newSpeed);
+      }
+    },
+    [onSpeedChange, readingSpeed],
+  );
 
   return (
     <div className="bg-card border-t border-border/60">
@@ -77,7 +91,7 @@ const ControlPanel = ({
             </span>
           </div>
           <Icon
-            name={isExpanded ? 'ChevronUp' : 'ChevronDown'}
+            name={isExpanded ? "ChevronUp" : "ChevronDown"}
             size={20}
             className="text-muted-foreground"
           />
@@ -130,7 +144,9 @@ const ControlPanel = ({
                 {speedPresets?.slice(0, 4)?.map((preset) => (
                   <Button
                     key={preset?.value}
-                    variant={readingSpeed === preset?.value ? 'default' : 'outline'}
+                    variant={
+                      readingSpeed === preset?.value ? "default" : "outline"
+                    }
                     size="xs"
                     onClick={() => handleSpeedPreset(preset?.value)}
                     className="text-xs"

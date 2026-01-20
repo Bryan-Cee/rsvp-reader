@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import AppHeader from "../../components/navigation/AppHeader";
 import QuickAccessControls from "../../components/navigation/QuickAccessControls";
@@ -71,6 +71,7 @@ const RSVPReaderView = () => {
   });
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const playbackTimeoutRef = useRef(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -249,18 +250,25 @@ const RSVPReaderView = () => {
     router.push("/main-reader-interface");
   }, [router]);
 
-  const words = bookData?.content?.split(/\s+/);
-  const currentWord = words
-    ?.slice(
-      readingState?.currentWordIndex,
-      readingState?.currentWordIndex + readingState?.wordsPerFrame,
-    )
-    ?.join(" ");
+  const words = useMemo(() => {
+    if (!bookData?.content) return [];
+    return bookData?.content?.split(/\s+/) ?? [];
+  }, [bookData?.content]);
+
+  const totalWords = bookData?.totalWords ?? words?.length ?? 0;
+
+  const currentWord = useMemo(() => {
+    if (!words?.length) return "";
+    return words
+      ?.slice(
+        readingState?.currentWordIndex,
+        readingState?.currentWordIndex + readingState?.wordsPerFrame,
+      )
+      ?.join(" ");
+  }, [words, readingState?.currentWordIndex, readingState?.wordsPerFrame]);
 
   const readingProgress =
-    bookData?.totalWords > 0
-      ? (readingState?.currentWordIndex / bookData?.totalWords) * 100
-      : 0;
+    totalWords > 0 ? (readingState?.currentWordIndex / totalWords) * 100 : 0;
   const loadingBookTitle =
     bookMeta?.title || searchParams?.get("bookTitle") || bookData?.title;
 
@@ -272,15 +280,15 @@ const RSVPReaderView = () => {
     if (typeof window === "undefined") return;
     if (!bookMeta?.id || isContentLoading) return;
 
-    const totalWords = bookData?.totalWords ?? 0;
-    if (totalWords <= 0) return;
+    const totalTrackedWords = totalWords ?? 0;
+    if (totalTrackedWords <= 0) return;
 
     const progressPayload = {
       currentWordIndex: Math.min(
         readingState?.currentWordIndex ?? 0,
-        Math.max(0, totalWords - 1),
+        Math.max(0, totalTrackedWords - 1),
       ),
-      totalWords,
+      totalWords: totalTrackedWords,
       updatedAt: Date.now(),
     };
 
@@ -294,55 +302,64 @@ const RSVPReaderView = () => {
     }
   }, [
     bookMeta?.id,
-    bookData?.totalWords,
+    totalWords,
     readingState?.currentWordIndex,
     isContentLoading,
   ]);
 
   useEffect(() => {
-    let intervalId;
-
-    if (
-      readingState?.isPlaying &&
-      readingState?.currentWordIndex < bookData?.totalWords
-    ) {
-      const delay =
-        (60000 / readingState?.readingSpeed) * readingState?.wordsPerFrame;
-
-      intervalId = setInterval(() => {
-        setReadingState((prev) => {
-          const nextIndex = prev?.currentWordIndex + prev?.wordsPerFrame;
-
-          if (nextIndex >= bookData?.totalWords) {
-            return {
-              ...prev,
-              isPlaying: false,
-              currentWordIndex: bookData?.totalWords - 1,
-            };
-          }
-
-          const currentWord = words?.[nextIndex];
-          let additionalDelay = 0;
-
-          if (prev?.pauseOnPunctuation && /[.!?;:]$/?.test(currentWord)) {
-            additionalDelay = 300;
-          }
-
-          if (prev?.pauseOnLongWords && currentWord?.length > 10) {
-            additionalDelay = 200;
-          }
-
-          if (additionalDelay > 0) {
-            setTimeout(() => {}, additionalDelay);
-          }
-
-          return { ...prev, currentWordIndex: nextIndex };
-        });
-      }, delay);
+    if (playbackTimeoutRef.current) {
+      clearTimeout(playbackTimeoutRef.current);
+      playbackTimeoutRef.current = null;
     }
 
+    if (
+      !readingState?.isPlaying ||
+      totalWords <= 0 ||
+      readingState?.currentWordIndex >= totalWords - 1
+    ) {
+      return undefined;
+    }
+
+    const baseDelay =
+      (60000 / readingState?.readingSpeed) * readingState?.wordsPerFrame;
+    const nextIndex = Math.min(
+      readingState?.currentWordIndex + readingState?.wordsPerFrame,
+      totalWords - 1,
+    );
+    const upcomingWord = words?.[nextIndex];
+
+    let delay = baseDelay;
+
+    if (readingState?.pauseOnPunctuation && /[.!?;:]$/?.test(upcomingWord)) {
+      delay += 300;
+    }
+
+    if (readingState?.pauseOnLongWords && upcomingWord?.length > 10) {
+      delay += 200;
+    }
+
+    playbackTimeoutRef.current = setTimeout(() => {
+      setReadingState((prev) => {
+        const candidateIndex = prev?.currentWordIndex + prev?.wordsPerFrame;
+
+        if (candidateIndex >= totalWords) {
+          return {
+            ...prev,
+            isPlaying: false,
+            currentWordIndex: totalWords - 1,
+          };
+        }
+
+        return { ...prev, currentWordIndex: candidateIndex };
+      });
+    }, delay);
+
     return () => {
-      if (intervalId) clearInterval(intervalId);
+      if (playbackTimeoutRef.current) {
+        clearTimeout(playbackTimeoutRef.current);
+        playbackTimeoutRef.current = null;
+      }
     };
   }, [
     readingState?.isPlaying,
@@ -351,7 +368,7 @@ const RSVPReaderView = () => {
     readingState?.pauseOnPunctuation,
     readingState?.pauseOnLongWords,
     readingState?.currentWordIndex,
-    bookData?.totalWords,
+    totalWords,
     words,
   ]);
 
@@ -386,20 +403,28 @@ const RSVPReaderView = () => {
     setReadingState((prev) => ({
       ...prev,
       currentWordIndex: Math.min(
-        bookData?.totalWords - 1,
+        Math.max(0, totalWords - 1),
         prev?.currentWordIndex + 10,
       ),
       isPlaying: false,
     }));
-  }, [bookData?.totalWords]);
+  }, [totalWords]);
 
-  const handleProgressChange = useCallback((newWordIndex) => {
-    setReadingState((prev) => ({
-      ...prev,
-      currentWordIndex: newWordIndex,
-      isPlaying: false,
-    }));
-  }, []);
+  const handleProgressChange = useCallback(
+    (newWordIndex) => {
+      const targetIndex = Math.min(
+        Math.max(newWordIndex, 0),
+        Math.max(0, totalWords - 1),
+      );
+
+      setReadingState((prev) => ({
+        ...prev,
+        currentWordIndex: targetIndex,
+        isPlaying: false,
+      }));
+    },
+    [totalWords],
+  );
 
   const handleSpeedChange = useCallback((newSpeed) => {
     setReadingState((prev) => ({
@@ -567,9 +592,7 @@ const RSVPReaderView = () => {
               <p className="text-lg font-semibold text-foreground">
                 We couldn’t load that book
               </p>
-              <p className="text-sm text-muted-foreground">
-                {contentError}
-              </p>
+              <p className="text-sm text-muted-foreground">{contentError}</p>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
               <Button

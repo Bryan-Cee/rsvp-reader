@@ -1,4 +1,17 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
+
+const FONT_CLASS_MAP = {
+  "source-sans": "font-sans",
+  crimson: "font-serif",
+  "ibm-plex": "font-caption",
+  jetbrains: "font-data",
+};
+
+const THEME_CLASS_MAP = {
+  light: "bg-background text-foreground",
+  dark: "bg-background text-foreground",
+  sepia: "bg-[#F4F1E8] text-[#3E2723]",
+};
 
 const RSVPDisplay = ({
   currentWord = "",
@@ -17,24 +30,20 @@ const RSVPDisplay = ({
     }
   }, [currentWord]);
 
-  const getFontFamilyClass = () => {
-    const fontMap = {
-      "source-sans": "font-sans",
-      crimson: "font-serif",
-      "ibm-plex": "font-caption",
-      jetbrains: "font-data",
-    };
-    return fontMap?.[fontFamily] || "font-sans";
-  };
+  const words = useMemo(() => {
+    if (!currentWord) return [];
+    return currentWord?.split(" ")?.slice(0, wordsPerFrame) ?? [];
+  }, [currentWord, wordsPerFrame]);
 
-  const getThemeClasses = () => {
-    const themeMap = {
-      light: "bg-background text-foreground",
-      dark: "bg-background text-foreground",
-      sepia: "bg-[#F4F1E8] text-[#3E2723]",
-    };
-    return themeMap?.[theme] || themeMap?.light;
-  };
+  const fontFamilyClass = useMemo(
+    () => FONT_CLASS_MAP?.[fontFamily] || FONT_CLASS_MAP?.["source-sans"],
+    [fontFamily],
+  );
+
+  const themeClasses = useMemo(
+    () => THEME_CLASS_MAP?.[theme] || THEME_CLASS_MAP?.light,
+    [theme],
+  );
 
   const getFocalPointIndex = (word) => {
     if (!showFocalPoint || !word) return -1;
@@ -67,13 +76,10 @@ const RSVPDisplay = ({
       </span>
     );
   };
-
-  const words = currentWord?.split(" ")?.slice(0, wordsPerFrame);
-
   return (
     <div
       ref={displayRef}
-      className={`flex items-center justify-center min-h-[40vh] md:min-h-[20vh]px-4 md:px-8 lg:px-12 ${getThemeClasses()} transition-colors duration-300`}
+      className={`flex items-center justify-center min-h-[40vh] md:min-h-[20vh]px-4 md:px-8 lg:px-12 ${themeClasses} transition-colors duration-300`}
       tabIndex={-1}
       role="region"
       aria-label="RSVP Reading Display"
@@ -81,7 +87,7 @@ const RSVPDisplay = ({
     >
       <div className="text-center max-w-4xl w-full">
         <div
-          className={`${getFontFamilyClass()} leading-relaxed transition-all duration-200`}
+          className={`${fontFamilyClass} leading-relaxed transition-all duration-200`}
           style={{
             fontSize: `${fontSize}px`,
             wordSpacing: wordsPerFrame > 1 ? "0.5em" : "normal",

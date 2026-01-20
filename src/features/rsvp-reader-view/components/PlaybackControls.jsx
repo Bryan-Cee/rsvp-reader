@@ -1,5 +1,6 @@
-import Icon from '../../../components/AppIcon';
-import Button from '../../../components/ui/Button';
+import { useCallback, useMemo } from "react";
+import Icon from "../../../components/AppIcon";
+import Button from "../../../components/ui/Button";
 
 const PlaybackControls = ({
   isPlaying = false,
@@ -9,26 +10,26 @@ const PlaybackControls = ({
   onPlayPause,
   onRewind,
   onForward,
-  onProgressChange
+  onProgressChange,
 }) => {
-  const progressPercentage = totalWords > 0 ? (currentWordIndex / totalWords) * 100 : 0;
+  const progressPercentage = useMemo(() => {
+    if (totalWords <= 0) return 0;
+    return (currentWordIndex / totalWords) * 100;
+  }, [currentWordIndex, totalWords]);
 
-  const formatTime = (wordIndex, wpm) => {
-    const minutes = Math.floor((wordIndex / wpm) * 60);
-    const seconds = Math.floor(((wordIndex / wpm) * 60) % 60);
-    return `${minutes}:${seconds?.toString()?.padStart(2, '0')}`;
-  };
+  const handleProgressClick = useCallback(
+    (e) => {
+      if (!onProgressChange || totalWords === 0) return;
 
-  const handleProgressClick = (e) => {
-    if (!onProgressChange || totalWords === 0) return;
+      const rect = e?.currentTarget?.getBoundingClientRect();
+      const x = e?.clientX - rect?.left;
+      const percentage = (x / rect?.width) * 100;
+      const newWordIndex = Math.floor((percentage / 100) * totalWords);
 
-    const rect = e?.currentTarget?.getBoundingClientRect();
-    const x = e?.clientX - rect?.left;
-    const percentage = (x / rect?.width) * 100;
-    const newWordIndex = Math.floor((percentage / 100) * totalWords);
-
-    onProgressChange(newWordIndex);
-  };
+      onProgressChange(newWordIndex);
+    },
+    [onProgressChange, totalWords],
+  );
 
   return (
     <div className="bg-card border-t border-border/60 px-4 md:px-6 lg:px-8 py-4 md:py-5 lg:py-6">
@@ -49,12 +50,15 @@ const PlaybackControls = ({
             />
             <div
               className="absolute inset-y-0 left-0 bg-primary/20 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-              style={{ width: '100%' }}
+              style={{ width: "100%" }}
             />
           </div>
 
           <div className="flex items-center justify-between text-xs md:text-sm text-muted-foreground font-data">
-            <span>{currentWordIndex?.toLocaleString()} / {totalWords?.toLocaleString()} words</span>
+            <span>
+              {currentWordIndex?.toLocaleString()} /{" "}
+              {totalWords?.toLocaleString()} words
+            </span>
             <span>{progressPercentage?.toFixed(1)}%</span>
           </div>
         </div>
@@ -70,12 +74,12 @@ const PlaybackControls = ({
           />
 
           <Button
-            variant={isPlaying ? 'default' : 'outline'}
+            variant={isPlaying ? "default" : "outline"}
             size="lg"
-            iconName={isPlaying ? 'Pause' : 'Play'}
+            iconName={isPlaying ? "Pause" : "Play"}
             onClick={onPlayPause}
             className="w-16 h-16 md:w-20 md:h-20 lg:w-24 lg:h-24"
-            aria-label={isPlaying ? 'Pause reading' : 'Start reading'}
+            aria-label={isPlaying ? "Pause reading" : "Start reading"}
           />
 
           <Button
@@ -92,7 +96,11 @@ const PlaybackControls = ({
           <div className="flex items-center gap-2 px-3 md:px-4 py-2 md:py-2.5 bg-muted/50 rounded-lg">
             <Icon name="Zap" size={16} className="text-primary" />
             <span className="text-xs md:text-sm font-medium text-foreground">
-              Press <kbd className="px-2 py-1 bg-card rounded border border-border font-data text-xs">Space</kbd> to play/pause
+              Press{" "}
+              <kbd className="px-2 py-1 bg-card rounded border border-border font-data text-xs">
+                Space
+              </kbd>{" "}
+              to play/pause
             </span>
           </div>
         </div>
