@@ -1,5 +1,7 @@
+"use client";
+
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import Icon from "../../components/AppIcon";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
@@ -8,7 +10,7 @@ import LibrarySection from "./components/LibrarySection";
 import CategoryFilters from "./components/CategoryFilter";
 
 const MainReaderInterface = () => {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
 
@@ -223,7 +225,7 @@ const MainReaderInterface = () => {
   };
 
   const handleSettingsClick = () => {
-    navigate("/settings-configuration");
+    router.push("/settings-configuration");
   };
 
   return (

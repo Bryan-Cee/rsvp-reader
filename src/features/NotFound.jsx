@@ -1,13 +1,15 @@
+"use client";
+
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import Button from 'components/ui/Button';
 import Icon from 'components/AppIcon';
 
 const NotFound = () => {
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const handleGoHome = () => {
-    navigate('/');
+    router.push('/');
   };
 
   return (
@@ -21,7 +23,7 @@ const NotFound = () => {
 
         <h2 className="text-2xl font-medium text-onBackground mb-2">Page Not Found</h2>
         <p className="text-onBackground/70 mb-8">
-          The page you're looking for doesn't exist. Let's get you back!
+          The page you&rsquo;re looking for doesn&rsquo;t exist. Let&rsquo;s get you back!
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center">

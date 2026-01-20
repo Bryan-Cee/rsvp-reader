@@ -1,6 +1,7 @@
+"use client";
+
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Helmet } from "react-helmet";
+import { useRouter } from "next/navigation";
 import ReadingSessionHeader from "../../components/navigation/ReadingSessionHeader";
 import Button from "../../components/ui/Button";
 import Icon from "../../components/AppIcon";
@@ -17,7 +18,7 @@ import {
 } from "../../utils/readerSettings";
 
 const SettingsConfiguration = () => {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
   const defaultSettings = DEFAULT_READER_SETTINGS;
@@ -77,7 +78,7 @@ const SettingsConfiguration = () => {
         handleSaveSettings();
       }
     }
-    navigate("/rsvp-reader-view");
+    router.push("/rsvp-reader-view");
   };
 
   const handleReturnToLibrary = () => {
@@ -89,20 +90,11 @@ const SettingsConfiguration = () => {
         handleSaveSettings();
       }
     }
-    navigate("/main-reader-interface");
+    router.push("/main-reader-interface");
   };
 
   return (
-    <>
-      <Helmet>
-        <title>Settings Configuration - SpeedReader</title>
-        <meta
-          name="description"
-          content="Customize your reading experience with comprehensive preference controls for speed, typography, behavior, and themes"
-        />
-      </Helmet>
-
-      <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background">
         <ReadingSessionHeader
           onSettingsOpen={() => setIsSettingsModalOpen(true)}
           readingProgress={0}
@@ -213,7 +205,6 @@ const SettingsConfiguration = () => {
           </div>
         </main>
       </div>
-    </>
   );
 };
 

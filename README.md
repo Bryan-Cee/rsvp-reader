@@ -1,126 +1,68 @@
-# React
+# SpeedReader (Next.js)
 
-A modern React-based project utilizing the latest frontend technologies and tools for building responsive web applications.
+A modern RSVP speed-reading experience rebuilt on **Next.js 14** with the App Router, Tailwind CSS, and rich customization controls.
 
-## 🚀 Features
+## 🚀 Stack
 
-- **React 18** - React version with improved rendering and concurrent features
-- **Vite** - Lightning-fast build tool and development server
-- **Redux Toolkit** - State management with simplified Redux setup
-- **TailwindCSS** - Utility-first CSS framework with extensive customization
-- **React Router v6** - Declarative routing for React applications
-- **Data Visualization** - Integrated D3.js and Recharts for powerful data visualization
-- **Form Management** - React Hook Form for efficient form handling
-- **Animation** - Framer Motion for smooth UI animations
-- **Testing** - Jest and React Testing Library setup
+- **Next.js 14 (App Router)** for routing, layouts, and hybrid rendering
+- **React 18** client components for interactive reading flows
+- **Tailwind CSS 3** with custom theme tokens and animations
+- **Redux Toolkit** foundations for future global state
+- **D3 + Recharts + Framer Motion** for data-rich visualizations and motion
+- **React Hook Form** for ergonomic form handling
 
 ## 📋 Prerequisites
 
-- Node.js (v14.x or higher)
-- npm or yarn
+- Node.js 18+
+- npm (included with Node) or pnpm/yarn if preferred
 
-## 🛠️ Installation
+## 🛠️ Getting Started
 
-1. Install dependencies:
-   ```bash
-   npm install
-   # or
-   yarn install
-   ```
+```bash
+npm install
+npm run dev        # start Next.js dev server at http://localhost:3000
 
-2. Start the development server:
-   ```bash
-   npm start
-   # or
-   yarn start
-   ```
+npm run build      # create a production build
+npm start          # serve the production build
+npm run lint       # run ESLint with Next.js rules
+```
 
 ## 📁 Project Structure
 
 ```
-react_app/
-├── public/             # Static assets
+.
+├── public/                     # Static assets
 ├── src/
-│   ├── components/     # Reusable UI components
-│   ├── pages/          # Page components
-│   ├── styles/         # Global styles and Tailwind configuration
-│   ├── App.jsx         # Main application component
-│   ├── Routes.jsx      # Application routes
-│   └── index.jsx       # Application entry point
-├── .env                # Environment variables
-├── index.html          # HTML template
-├── package.json        # Project dependencies and scripts
-├── tailwind.config.js  # Tailwind CSS configuration
-└── vite.config.js      # Vite configuration
+│   ├── app/                    # Next.js App Router entries (page/layout/not-found)
+│   ├── components/             # Shared UI widgets (buttons, navigation, etc.)
+│   ├── features/               # Screen-level React components (library, settings, RSVP reader)
+│   ├── styles/                 # Tailwind + global styles and theme tokens
+│   └── utils/                  # Reusable helpers (reader settings persistence)
+├── tailwind.config.js          # Tailwind setup (App Router aware content globs)
+├── next.config.mjs             # Next.js configuration
+└── package.json                # Scripts and dependencies
 ```
 
-## 🧩 Adding Routes
+### Routing overview
 
-To add new routes to the application, update the `Routes.jsx` file:
+| Route | File |
+| --- | --- |
+| `/` and `/main-reader-interface` | `src/app/page.jsx`, `src/app/main-reader-interface/page.jsx`
+| `/settings-configuration` | `src/app/settings-configuration/page.jsx`
+| `/rsvp-reader-view` | `src/app/rsvp-reader-view/page.jsx`
+| 404 fallback | `src/app/not-found.jsx`
 
-```jsx
-import { useRoutes } from "react-router-dom";
-import HomePage from "pages/HomePage";
-import AboutPage from "pages/AboutPage";
+Each page imports a client component from `src/features`, keeping data fetching/layout concerns in the App Router while the UI stays interactive.
 
-const ProjectRoutes = () => {
-  let element = useRoutes([
-    { path: "/", element: <HomePage /> },
-    { path: "/about", element: <AboutPage /> },
-    // Add more routes as needed
-  ]);
+## 🎨 Styling & Theming
 
-  return element;
-};
-```
-
-## 🎨 Styling
-
-This project uses Tailwind CSS for styling. The configuration includes:
-
-- Forms plugin for form styling
-- Typography plugin for text styling
-- Aspect ratio plugin for responsive elements
-- Container queries for component-specific responsive design
-- Fluid typography for responsive text
-- Animation utilities
-
-## 📱 Responsive Design
-
-The app is built with responsive design using Tailwind CSS breakpoints.
-
+Tailwind CSS powers the UI with custom CSS variables for colors, radii, and typography defined in `src/styles/tailwind.css`. Global styles are loaded in `src/app/layout.jsx`, and plugins like Typography, Container Queries, and Animate are enabled for expressive components.
 
 ## 📦 Deployment
 
-### GitHub Pages
+Next.js outputs optimized assets in the `.next` directory. You can deploy via any Node-friendly platform (Vercel, Netlify, Render, etc.):
 
-This project is configured for automatic deployment to GitHub Pages. When you push changes to the `main` branch, a GitHub Actions workflow will automatically build and deploy the application.
+1. `npm run build`
+2. `npm start` (or your platform’s Next.js adapter)
 
-#### Initial Setup
-
-To enable GitHub Pages for your repository:
-
-1. Go to your repository on GitHub
-2. Navigate to **Settings** → **Pages**
-3. Under **Source**, select **GitHub Actions**
-4. Push to the `main` branch to trigger the deployment
-
-The application will be available at: `https://bryan-cee.github.io/rsvp-reader/`
-
-#### Manual Deployment
-
-You can also manually trigger a deployment:
-
-1. Go to the **Actions** tab in your GitHub repository
-2. Select the **Deploy to GitHub Pages** workflow
-3. Click **Run workflow**
-
-### Local Build
-
-Build the application for production:
-
-```bash
-npm run build
-```
-
-The built files will be in the `build` directory.
+For static hosting, configure Next.js export or use the official adapters for your target platform.

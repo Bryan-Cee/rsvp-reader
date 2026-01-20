@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import Icon from '../AppIcon';
 import Button from '../ui/Button';
 
 const ReadingSessionHeader = ({ onSettingsOpen, readingProgress = 0 }) => {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [isVisible, setIsVisible] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
 
@@ -27,7 +27,7 @@ const ReadingSessionHeader = ({ onSettingsOpen, readingProgress = 0 }) => {
   }, [lastScrollY]);
 
   const handleReturnToLibrary = () => {
-    navigate('/main-reader-interface');
+    router.push('/main-reader-interface');
   };
 
   const handleOpenSettings = () => {

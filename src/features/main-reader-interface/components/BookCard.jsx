@@ -1,13 +1,17 @@
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import Icon from '../../../components/AppIcon';
 import Image from '../../../components/AppImage';
 import Button from '../../../components/ui/Button';
 
 const BookCard = ({ book }) => {
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const handleReadClick = () => {
-    navigate('/rsvp-reader-view', { state: { book } });
+    const params = new URLSearchParams({
+      bookTitle: book?.title ?? '',
+      bookAuthor: book?.author ?? '',
+    });
+    router.push(`/rsvp-reader-view?${params.toString()}`);
   };
 
   const formatReadingTime = (minutes) => {
