@@ -14,19 +14,30 @@ import {
   saveReaderSettings,
   applyThemeFromSettings,
 } from "../../utils/readerSettings";
+import { remapGutenbergTextUrl } from "../../utils/gutenberg";
+
+const DEFAULT_BOOK_CONTENT = `Speed reading is a collection of techniques that aim to increase reading speed without significantly reducing comprehension or retention. The concept gained popularity in the 1950s and 1960s with the development of various training programs and devices.\n\nOne of the most effective methods is RSVP, or Rapid Serial Visual Presentation. This technique displays words sequentially at a fixed location on the screen, eliminating the need for eye movement. By reducing the physical movement of the eyes, readers can focus entirely on processing the text, leading to significant improvements in reading speed.\n\nResearch has shown that the average person reads at about 200-250 words per minute. With proper training and the right tools, many people can double or even triple their reading speed while maintaining good comprehension. The key is consistent practice and gradually increasing the speed as you become more comfortable with the technique.\n\nModern technology has made speed reading more accessible than ever. Digital tools can automatically adjust the presentation speed, highlight focal points in words, and track your progress over time. These features help readers develop their skills more effectively than traditional methods.\n\nHowever, it's important to note that speed reading isn't suitable for all types of content. Complex technical material, poetry, or texts that require deep analysis may benefit from slower, more careful reading. The goal is to have the flexibility to adjust your reading speed based on the content and your purpose for reading.`;
+
+const LIBRARY_STORAGE_KEY = "speedReader:libraryBooks";
+const OPENED_BOOKS_KEY = "speedReader:openedBooks";
+const BOOK_CONTENT_CACHE_PREFIX = "speedReader:bookContent:";
+const PROGRESS_STORAGE_PREFIX = "speedReader:progress:";
 
 const RSVPReaderView = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
-
-  const mockBookContent = `Speed reading is a collection of techniques that aim to increase reading speed without significantly reducing comprehension or retention. The concept gained popularity in the 1950s and 1960s with the development of various training programs and devices.\n\nOne of the most effective methods is RSVP, or Rapid Serial Visual Presentation. This technique displays words sequentially at a fixed location on the screen, eliminating the need for eye movement. By reducing the physical movement of the eyes, readers can focus entirely on processing the text, leading to significant improvements in reading speed.\n\nResearch has shown that the average person reads at about 200-250 words per minute. With proper training and the right tools, many people can double or even triple their reading speed while maintaining good comprehension. The key is consistent practice and gradually increasing the speed as you become more comfortable with the technique.\n\nModern technology has made speed reading more accessible than ever. Digital tools can automatically adjust the presentation speed, highlight focal points in words, and track your progress over time. These features help readers develop their skills more effectively than traditional methods.\n\nHowever, it's important to note that speed reading isn't suitable for all types of content. Complex technical material, poetry, or texts that require deep analysis may benefit from slower, more careful reading. The goal is to have the flexibility to adjust your reading speed based on the content and your purpose for reading.`;
-
-  const [bookData] = useState({
-    title: searchParams?.get("bookTitle") || "Introduction to Speed Reading",
-    author: searchParams?.get("bookAuthor") || "Reading Expert",
-    content: mockBookContent,
-    totalWords: mockBookContent?.split(/\s+/)?.length,
+  const [bookMeta, setBookMeta] = useState(null);
+  const [bookData, setBookData] = useState(() => {
+    const fallbackContent = DEFAULT_BOOK_CONTENT;
+    return {
+      title: searchParams?.get("bookTitle") || "Introduction to Speed Reading",
+      author: searchParams?.get("bookAuthor") || "Reading Expert",
+      content: fallbackContent,
+      totalWords: fallbackContent?.split(/\s+/)?.length ?? 0,
+    };
   });
+  const [isContentLoading, setIsContentLoading] = useState(true);
+  const [contentError, setContentError] = useState(null);
 
   const [readingState, setReadingState] = useState(() => {
     const persisted = loadReaderSettings();
@@ -60,6 +71,163 @@ const RSVPReaderView = () => {
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const bookId = searchParams?.get("bookId");
+    const fallbackMeta = {
+      id: bookId,
+      title: searchParams?.get("bookTitle") || "Introduction to Speed Reading",
+      author: searchParams?.get("bookAuthor") || "Reading Expert",
+      textUrl: searchParams?.get("textUrl") || null,
+    };
+
+    const safeParse = (value) => {
+      if (!value) return null;
+      try {
+        return JSON.parse(value);
+      } catch (error) {
+        console.warn("Failed to parse stored value", error);
+        return null;
+      }
+    };
+
+    let resolvedMeta = fallbackMeta;
+
+    if (bookId) {
+      const library = safeParse(
+        window.localStorage.getItem(LIBRARY_STORAGE_KEY),
+      );
+      if (Array.isArray(library)) {
+        const fromLibrary = library.find(
+          (entry) => String(entry?.id) === String(bookId),
+        );
+        if (fromLibrary) {
+          resolvedMeta = fromLibrary;
+        }
+      }
+
+      if (!resolvedMeta?.textUrl) {
+        const openedBooks = safeParse(
+          window.localStorage.getItem(OPENED_BOOKS_KEY),
+        );
+        if (openedBooks?.[bookId]) {
+          resolvedMeta = openedBooks[bookId];
+        }
+      }
+    }
+
+    setBookMeta(resolvedMeta);
+    setIsContentLoading(true);
+    setContentError(null);
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (!bookMeta) return;
+
+    const cacheKey = bookMeta?.id
+      ? `${BOOK_CONTENT_CACHE_PREFIX}${bookMeta.id}`
+      : null;
+    const preferredTextUrl = remapGutenbergTextUrl(bookMeta?.textUrl);
+    const candidateUrls = Array.from(
+      new Set(
+        [preferredTextUrl, bookMeta?.textUrl].filter(
+          (url) => typeof url === "string" && url.length > 0,
+        ),
+      ),
+    );
+
+    const fallbackTitle =
+      bookMeta?.title || searchParams?.get("bookTitle") || "Untitled Book";
+    const fallbackAuthor =
+      bookMeta?.author || searchParams?.get("bookAuthor") || "Unknown Author";
+
+    const applyContent = (content) => {
+      const cleanedContent =
+        content && content.trim().length > 0 ? content : DEFAULT_BOOK_CONTENT;
+      setBookData({
+        title: fallbackTitle,
+        author: fallbackAuthor,
+        content: cleanedContent,
+        totalWords: Math.max(1, cleanedContent.split(/\s+/)?.length ?? 1),
+      });
+      setIsContentLoading(false);
+    };
+
+    if (typeof window !== "undefined" && cacheKey) {
+      const cachedContent = window.localStorage.getItem(cacheKey);
+      if (cachedContent) {
+        applyContent(cachedContent);
+        return;
+      }
+    }
+
+    if (candidateUrls.length === 0) {
+      setContentError("This title does not provide a plain text format.");
+      applyContent(DEFAULT_BOOK_CONTENT);
+      return;
+    }
+
+    let didCancel = false;
+
+    const fetchContent = async () => {
+      setIsContentLoading(true);
+      let lastError = null;
+
+      for (const url of candidateUrls) {
+        try {
+          const proxyUrl = `/api/book-text?url=${encodeURIComponent(url)}`;
+          const response = await fetch(proxyUrl, { cache: "no-store" });
+          if (!response?.ok) {
+            throw new Error("Unable to download book content.");
+          }
+          const text = await response.text();
+          if (didCancel) return;
+
+          if (typeof window !== "undefined" && cacheKey) {
+            window.localStorage.setItem(cacheKey, text);
+
+            if (bookMeta?.id) {
+              try {
+                const openedRaw = window.localStorage.getItem(OPENED_BOOKS_KEY);
+                const opened = openedRaw ? JSON.parse(openedRaw) : {};
+                opened[bookMeta.id] = {
+                  ...bookMeta,
+                  textUrl: url,
+                };
+                window.localStorage.setItem(
+                  OPENED_BOOKS_KEY,
+                  JSON.stringify(opened),
+                );
+              } catch (storageError) {
+                console.warn(
+                  "Failed to persist opened book metadata",
+                  storageError,
+                );
+              }
+            }
+          }
+
+          applyContent(text);
+          return;
+        } catch (error) {
+          lastError = error;
+        }
+      }
+
+      if (didCancel) return;
+      console.error("Failed to load book content", lastError);
+      setContentError(lastError?.message ?? "Failed to load book content.");
+      applyContent(DEFAULT_BOOK_CONTENT);
+    };
+
+    fetchContent();
+
+    return () => {
+      didCancel = true;
+    };
+  }, [bookMeta, searchParams]);
+
   const words = bookData?.content?.split(/\s+/);
   const currentWord = words
     ?.slice(
@@ -72,10 +240,43 @@ const RSVPReaderView = () => {
     bookData?.totalWords > 0
       ? (readingState?.currentWordIndex / bookData?.totalWords) * 100
       : 0;
+  const loadingBookTitle =
+    bookMeta?.title || searchParams?.get("bookTitle") || bookData?.title;
 
   useEffect(() => {
     applyThemeFromSettings(readingState?.theme);
   }, [readingState?.theme]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!bookMeta?.id || isContentLoading) return;
+
+    const totalWords = bookData?.totalWords ?? 0;
+    if (totalWords <= 0) return;
+
+    const progressPayload = {
+      currentWordIndex: Math.min(
+        readingState?.currentWordIndex ?? 0,
+        Math.max(0, totalWords - 1),
+      ),
+      totalWords,
+      updatedAt: Date.now(),
+    };
+
+    try {
+      window.localStorage.setItem(
+        `${PROGRESS_STORAGE_PREFIX}${bookMeta.id}`,
+        JSON.stringify(progressPayload),
+      );
+    } catch (error) {
+      console.warn("Failed to persist reading progress", error);
+    }
+  }, [
+    bookMeta?.id,
+    bookData?.totalWords,
+    readingState?.currentWordIndex,
+    isContentLoading,
+  ]);
 
   useEffect(() => {
     let intervalId;
@@ -234,7 +435,7 @@ const RSVPReaderView = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col relative">
       <AppHeader
         actions={
           <>
@@ -313,6 +514,25 @@ const RSVPReaderView = () => {
         }}
         onSave={handleSettingsSave}
       />
+
+      {isContentLoading && (
+        <div
+          className="fixed inset-0 z-40 flex flex-col items-center justify-center gap-6 px-6 text-center bg-background/95 backdrop-blur"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="w-16 h-16 rounded-full border-4 border-muted-foreground/40 border-t-primary animate-spin" />
+          <div className="space-y-2 max-w-xl">
+            <p className="text-lg font-semibold text-foreground">
+              Loading {loadingBookTitle || "your selection"}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              We are downloading the plain-text edition and preparing it for the
+              RSVP reader.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,13 +1,34 @@
+"use client";
+
 import { useRouter } from "next/navigation";
 import Icon from "../../../components/AppIcon";
-import Image from "../../../components/AppImage";
 import Button from "../../../components/ui/Button";
+
+const OPENED_BOOKS_KEY = "speedReader:openedBooks";
 
 const BookCard = ({ book }) => {
   const router = useRouter();
+  const hasCachedContent = Boolean(book?.hasCachedContent);
+  const readProgress = hasCachedContent
+    ? Math.max(0, book?.readProgress ?? 0)
+    : 0;
 
   const handleReadClick = () => {
+    if (typeof window !== "undefined") {
+      try {
+        const existing = window.localStorage.getItem(OPENED_BOOKS_KEY);
+        const parsed = existing ? JSON.parse(existing) : {};
+        if (book?.id) {
+          parsed[book.id] = book;
+        }
+        window.localStorage.setItem(OPENED_BOOKS_KEY, JSON.stringify(parsed));
+      } catch (error) {
+        console.warn("Failed to cache opened book", error);
+      }
+    }
+
     const params = new URLSearchParams({
+      bookId: book?.id ? String(book.id) : "",
       bookTitle: book?.title ?? "",
       bookAuthor: book?.author ?? "",
     });
@@ -31,22 +52,7 @@ const BookCard = ({ book }) => {
   };
 
   return (
-    <div className="group w-full bg-card rounded-lg md:rounded-xl border border-border/60 overflow-hidden hover:shadow-lg hover:border-primary/30 transition-all duration-300">
-      <div className="relative aspect-[3/4] overflow-hidden bg-muted">
-        <Image
-          src={book?.coverImage}
-          alt={book?.coverImageAlt}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-        />
-        {book?.progress > 0 && (
-          <div className="absolute top-3 right-3 px-2 py-1 bg-background/90 backdrop-blur-sm rounded-md">
-            <span className="font-data text-xs font-semibold text-foreground">
-              {book?.progress}%
-            </span>
-          </div>
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-      </div>
+    <div className="group w-full bg-card rounded-lg md:rounded-xl border border-border/60 overflow-hidden hover:shadow-sm hover:border-border hover:border-primary/30 transition-all duration-300">
       <div className="p-4 md:p-5 space-y-3">
         <div className="space-y-1">
           <h3 className="text-base md:text-lg font-semibold text-foreground line-clamp-2 group-hover:text-primary transition-colors duration-200">
@@ -57,41 +63,49 @@ const BookCard = ({ book }) => {
           </p>
         </div>
 
-        <div className="flex items-center gap-4 text-xs md:text-sm text-muted-foreground">
-          <div className="flex items-center gap-1">
-            <Icon name="FileText" size={14} />
-            <span className="font-data whitespace-nowrap">
-              {book?.wordCount?.toLocaleString()}
-            </span>
+        {hasCachedContent ? (
+          <div className="flex items-center gap-4 text-xs md:text-sm text-muted-foreground">
+            <div className="flex items-center gap-1">
+              <Icon name="FileText" size={14} />
+              <span className="font-data whitespace-nowrap">
+                {book?.wordCount?.toLocaleString()}
+              </span>
+            </div>
+            <div className="flex items-center gap-1">
+              <Icon name="Clock" size={14} />
+              <span className="whitespace-nowrap">
+                {formatReadingTime(book?.estimatedTime)}
+              </span>
+            </div>
           </div>
-          <div className="flex items-center gap-1">
-            <Icon name="Clock" size={14} />
-            <span className="whitespace-nowrap">
-              {formatReadingTime(book?.estimatedTime)}
-            </span>
-          </div>
-        </div>
+        ) : (
+          <p className="text-xs md:text-sm text-muted-foreground italic">
+            Start reading to view stats
+          </p>
+        )}
 
-        {book?.progress > 0 && (
+        {hasCachedContent && readProgress > 0 && (
           <div className="space-y-1">
             <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
               <div
-                className={`h-full ${getProgressColor(book?.progress)} transition-all duration-300`}
-                style={{ width: `${book?.progress}%` }}
+                className={`h-full ${getProgressColor(readProgress)} transition-all duration-300`}
+                style={{ width: `${readProgress}%` }}
               />
             </div>
           </div>
         )}
 
         <Button
-          variant={book?.progress > 0 ? "default" : "outline"}
+          variant={hasCachedContent ? "default" : "outline"}
           size="sm"
-          iconName={book?.progress > 0 ? "PlayCircle" : "BookOpen"}
+          iconName={hasCachedContent ? "PlayCircle" : "BookOpen"}
           iconPosition="left"
           fullWidth
           onClick={handleReadClick}
         >
-          {book?.progress > 0 ? "Continue Reading" : "Start Reading"}
+          {hasCachedContent && readProgress > 0
+            ? "Continue Reading"
+            : "Start Reading"}
         </Button>
       </div>
     </div>

@@ -1,216 +1,213 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import AppHeader from "../../components/navigation/AppHeader";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
+import { remapGutenbergTextUrl } from "../../utils/gutenberg";
 import FileUploadZone from "./components/FileUploadZone";
 import LibrarySection from "./components/LibrarySection";
 import CategoryFilters from "./components/CategoryFilter";
+
+const TARGET_BOOK_COUNT = 60;
+const LIBRARY_STORAGE_KEY = "speedReader:libraryBooks";
+const BOOK_CONTENT_CACHE_PREFIX = "speedReader:bookContent:";
+const PROGRESS_STORAGE_PREFIX = "speedReader:progress:";
+
+const CATEGORIES = [
+  { id: "science-fiction", keywords: ["science fiction"] },
+  { id: "adventure", keywords: ["adventure"] },
+  { id: "mystery", keywords: ["mystery", "detective"] },
+  { id: "philosophy", keywords: ["philosophy"] },
+  { id: "science", keywords: ["science", "astronomy", "mathematics"] },
+  { id: "horror", keywords: ["horror", "ghost"] },
+  { id: "romance", keywords: ["romance", "love stories"] },
+  { id: "poetry", keywords: ["poetry"] },
+  { id: "self-improvement", keywords: ["education", "conduct"] },
+  { id: "humor", keywords: ["humor"] },
+  { id: "classics", keywords: ["classic", "literature"] },
+];
+
+const deriveCategory = (subjects = [], wordCount = 0) => {
+  const normalizedSubjects = subjects
+    ?.map((subject) => subject?.toLowerCase?.() ?? "")
+    ?.filter(Boolean);
+
+  for (const category of CATEGORIES) {
+    if (
+      category.keywords?.some((keyword) =>
+        normalizedSubjects?.some((subject) => subject.includes(keyword)),
+      )
+    ) {
+      return category.id;
+    }
+  }
+
+  if (wordCount && wordCount <= 20000) {
+    return "quick-reads";
+  }
+
+  return "classics";
+};
+
+const extractTextUrl = (formats = {}) => {
+  const rawUrl =
+    formats?.["text/plain; charset=utf-8"] ||
+    formats?.["text/plain; charset=us-ascii"] ||
+    formats?.["text/plain; charset=iso-8859-1"] ||
+    formats?.["text/plain"] ||
+    null;
+
+  return remapGutenbergTextUrl(rawUrl);
+};
+
+const mapGutenbergBook = (book) => {
+  const downloadCount = book?.download_count ?? 0;
+  const wordCount = Math.max(15000, Math.min(120000, downloadCount * 40));
+  const estimatedTime = Math.max(45, Math.round(wordCount / 250));
+  const progress = Math.min(95, Math.round(downloadCount % 100));
+
+  return {
+    id: book?.id,
+    title: book?.title,
+    author: book?.authors?.[0]?.name ?? "Unknown Author",
+    coverImage: book?.cover_image ?? book?.formats?.["image/jpeg"],
+    coverImageAlt: book?.title
+      ? `Cover art for ${book.title}`
+      : "Decorative book cover placeholder",
+    wordCount,
+    estimatedTime,
+    progress,
+    category: deriveCategory(book?.subjects, wordCount),
+    textUrl: extractTextUrl(book?.formats),
+    hasCachedContent: false,
+  };
+};
+
+const applyActualWordCounts = (bookList = []) => {
+  if (typeof window === "undefined" || !Array.isArray(bookList)) {
+    return bookList ?? [];
+  }
+
+  return bookList.map((book) => {
+    if (!book?.id) {
+      return { ...book, hasCachedContent: false, readProgress: 0 };
+    }
+
+    const cacheKey = `${BOOK_CONTENT_CACHE_PREFIX}${book.id}`;
+    const cachedContent = window.localStorage.getItem(cacheKey);
+    const progressKey = `${PROGRESS_STORAGE_PREFIX}${book.id}`;
+    const hasCachedContent = Boolean(
+      cachedContent && cachedContent.trim().length > 0,
+    );
+    let readProgress = 0;
+
+    if (!hasCachedContent) {
+      return { ...book, hasCachedContent: false, readProgress };
+    }
+
+    const totalWords = Math.max(
+      1,
+      cachedContent.trim().split(/\s+/)?.length ?? 1,
+    );
+
+    const progressRaw = window.localStorage.getItem(progressKey);
+    if (progressRaw) {
+      try {
+        const parsed = JSON.parse(progressRaw);
+        if (parsed?.totalWords > 0) {
+          readProgress = Math.min(
+            100,
+            Math.max(
+              0,
+              Math.round((parsed.currentWordIndex / parsed.totalWords) * 100),
+            ),
+          );
+        }
+      } catch (error) {
+        console.warn("Failed to parse reading progress", error);
+      }
+    }
+
+    return {
+      ...book,
+      hasCachedContent: true,
+      wordCount: totalWords,
+      estimatedTime: Math.max(1, Math.round(totalWords / 250)),
+      readProgress,
+    };
+  });
+};
 
 const MainReaderInterface = () => {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState("all");
+  const [books, setBooks] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(null);
 
-  const mockBooks = [
-    {
-      id: 1,
-      title: "The Art of Speed Reading",
-      author: "Dr. Sarah Mitchell",
-      coverImage:
-        "https://images.pexels.com/photos/1370295/pexels-photo-1370295.jpeg",
-      coverImageAlt:
-        "Close-up of open book pages with soft lighting creating depth and texture in reading material",
-      wordCount: 45000,
-      estimatedTime: 180,
-      progress: 45,
-      category: "self-improvement",
-    },
-    {
-      id: 2,
-      title: "Quantum Mechanics Simplified",
-      author: "Prof. James Chen",
-      coverImage:
-        "https://images.pexels.com/photos/256559/pexels-photo-256559.jpeg",
-      coverImageAlt:
-        "Stack of hardcover science textbooks with blue and white covers on wooden desk surface",
-      wordCount: 78000,
-      estimatedTime: 312,
-      progress: 0,
-      category: "science",
-    },
-    {
-      id: 3,
-      title: "Mystery at Midnight Manor",
-      author: "Elizabeth Blackwood",
-      coverImage:
-        "https://images.pexels.com/photos/1130980/pexels-photo-1130980.jpeg",
-      coverImageAlt:
-        "Dark atmospheric image of vintage mansion at night with moonlight casting shadows on gothic architecture",
-      wordCount: 62000,
-      estimatedTime: 248,
-      progress: 78,
-      category: "mystery",
-    },
-    {
-      id: 4,
-      title: "The Philosophy of Existence",
-      author: "Marcus Aurelius Jr.",
-      coverImage:
-        "https://images.pexels.com/photos/1319854/pexels-photo-1319854.jpeg",
-      coverImageAlt:
-        "Ancient leather-bound philosophy book with gold embossed text on burgundy cover resting on marble surface",
-      wordCount: 52000,
-      estimatedTime: 208,
-      progress: 23,
-      category: "philosophy",
-    },
-    {
-      id: 5,
-      title: "Adventures in the Amazon",
-      author: "Carlos Rodriguez",
-      coverImage:
-        "https://images.pexels.com/photos/1666021/pexels-photo-1666021.jpeg",
-      coverImageAlt:
-        "Lush green Amazon rainforest canopy with misty morning light filtering through dense tropical vegetation",
-      wordCount: 71000,
-      estimatedTime: 284,
-      progress: 0,
-      category: "adventure",
-    },
-    {
-      id: 6,
-      title: "Starship Chronicles",
-      author: "Nova Sterling",
-      coverImage:
-        "https://images.pexels.com/photos/2150/sky-space-dark-galaxy.jpg",
-      coverImageAlt:
-        "Deep space scene with distant galaxies and nebulae in purple and blue hues against black cosmic background",
-      wordCount: 89000,
-      estimatedTime: 356,
-      progress: 12,
-      category: "science-fiction",
-    },
-    {
-      id: 7,
-      title: "Whispers in the Dark",
-      author: "H.P. Lovecraft III",
-      coverImage:
-        "https://images.pexels.com/photos/1666021/pexels-photo-1666021.jpeg",
-      coverImageAlt:
-        "Eerie foggy forest path at dusk with twisted bare trees creating ominous silhouettes in dim light",
-      wordCount: 54000,
-      estimatedTime: 216,
-      progress: 0,
-      category: "horror",
-    },
-    {
-      id: 8,
-      title: "Love in Paris",
-      author: "Amélie Dubois",
-      coverImage:
-        "https://images.pexels.com/photos/1850629/pexels-photo-1850629.jpeg",
-      coverImageAlt:
-        "Romantic Parisian street scene with Eiffel Tower in background during golden hour sunset with couple silhouette",
-      wordCount: 48000,
-      estimatedTime: 192,
-      progress: 56,
-      category: "romance",
-    },
-    {
-      id: 9,
-      title: "Verses of the Soul",
-      author: "Maya Angelou II",
-      coverImage:
-        "https://images.pexels.com/photos/1029141/pexels-photo-1029141.jpeg",
-      coverImageAlt:
-        "Elegant fountain pen resting on handwritten poetry manuscript with flowing cursive text on cream paper",
-      wordCount: 12000,
-      estimatedTime: 48,
-      progress: 0,
-      category: "poetry",
-    },
-    {
-      id: 10,
-      title: "The Productivity Paradox",
-      author: "Tim Ferriss Jr.",
-      coverImage:
-        "https://images.pexels.com/photos/1181406/pexels-photo-1181406.jpeg",
-      coverImageAlt:
-        "Modern minimalist workspace with laptop, notebook, and coffee cup arranged neatly on white desk surface",
-      wordCount: 38000,
-      estimatedTime: 152,
-      progress: 89,
-      category: "self-improvement",
-    },
-    {
-      id: 11,
-      title: "Laugh Out Loud",
-      author: "Jerry Seinfeld Jr.",
-      coverImage:
-        "https://images.pexels.com/photos/1181533/pexels-photo-1181533.jpeg",
-      coverImageAlt:
-        "Colorful comic book style illustration with bright yellow and red speech bubbles on vibrant background",
-      wordCount: 28000,
-      estimatedTime: 112,
-      progress: 0,
-      category: "humor",
-    },
-    {
-      id: 12,
-      title: "Pride and Prejudice Revisited",
-      author: "Jane Austen Estate",
-      coverImage:
-        "https://images.pexels.com/photos/1130980/pexels-photo-1130980.jpeg",
-      coverImageAlt:
-        "Vintage Victorian-era book with ornate floral patterns on leather cover displayed on antique wooden table",
-      wordCount: 82000,
-      estimatedTime: 328,
-      progress: 34,
-      category: "classics",
-    },
-    {
-      id: 13,
-      title: "5-Minute Mindfulness",
-      author: "Zen Master Lee",
-      coverImage:
-        "https://images.pexels.com/photos/1051838/pexels-photo-1051838.jpeg",
-      coverImageAlt:
-        "Peaceful meditation scene with person sitting cross-legged on yoga mat in serene natural outdoor setting",
-      wordCount: 8500,
-      estimatedTime: 34,
-      progress: 0,
-      category: "quick-reads",
-    },
-    {
-      id: 14,
-      title: "The Cosmic Connection",
-      author: "Dr. Neil deGrasse Tyson II",
-      coverImage:
-        "https://images.pexels.com/photos/1169754/pexels-photo-1169754.jpeg",
-      coverImageAlt:
-        "Stunning view of Milky Way galaxy with countless stars and cosmic dust clouds in deep space photograph",
-      wordCount: 67000,
-      estimatedTime: 268,
-      progress: 0,
-      category: "science",
-    },
-    {
-      id: 15,
-      title: "Desert Storm Adventure",
-      author: "Lawrence of Arabia Jr.",
-      coverImage:
-        "https://images.pexels.com/photos/1670732/pexels-photo-1670732.jpeg",
-      coverImageAlt:
-        "Vast golden sand dunes stretching to horizon under bright blue sky in Middle Eastern desert landscape",
-      wordCount: 73000,
-      estimatedTime: 292,
-      progress: 67,
-      category: "adventure",
-    },
-  ];
+  const fetchBooks = useCallback(async () => {
+    setIsLoading(true);
+    setFetchError(null);
+
+    try {
+      const response = await fetch(`/api/books?limit=${TARGET_BOOK_COUNT}`, {
+        cache: "no-store",
+      });
+
+      if (!response?.ok) {
+        throw new Error("Unable to fetch curated books from Project Gutenberg");
+      }
+
+      const payload = await response.json();
+      const curatedBooks = (payload?.results ?? []).map(mapGutenbergBook);
+      const hydratedBooks = applyActualWordCounts(curatedBooks);
+
+      setBooks(hydratedBooks);
+
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(
+          LIBRARY_STORAGE_KEY,
+          JSON.stringify(hydratedBooks),
+        );
+      }
+    } catch (error) {
+      console.error("Failed to load Project Gutenberg books", error);
+      setFetchError(
+        error?.message ?? "Something went wrong while loading your library.",
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const cachedBooks = window.localStorage.getItem(LIBRARY_STORAGE_KEY);
+
+    if (cachedBooks) {
+      try {
+        const parsed = JSON.parse(cachedBooks);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const hydratedBooks = applyActualWordCounts(parsed);
+          setBooks(hydratedBooks);
+          window.localStorage.setItem(
+            LIBRARY_STORAGE_KEY,
+            JSON.stringify(hydratedBooks),
+          );
+          setIsLoading(false);
+          return;
+        }
+      } catch (error) {
+        console.warn("Failed to parse cached library", error);
+      }
+    }
+
+    fetchBooks();
+  }, [fetchBooks]);
 
   const handleFileUpload = (file) => {
     console.log("File uploaded:", file?.name);
@@ -226,6 +223,12 @@ const MainReaderInterface = () => {
 
   const handleSettingsClick = () => {
     router.push("/settings-configuration");
+  };
+
+  const handleRetry = () => {
+    if (!isLoading) {
+      fetchBooks();
+    }
   };
 
   return (
@@ -274,9 +277,12 @@ const MainReaderInterface = () => {
           </div>
 
           <LibrarySection
-            books={mockBooks}
+            books={books}
             searchQuery={searchQuery}
             activeCategory={activeCategory}
+            isLoading={isLoading}
+            error={fetchError}
+            onRetry={handleRetry}
           />
         </section>
       </main>

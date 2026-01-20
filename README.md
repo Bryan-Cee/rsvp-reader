@@ -27,6 +27,16 @@ npm start          # serve the production build
 npm run lint       # run ESLint with Next.js rules
 ```
 
+## 🔑 Project Gutenberg API Access
+
+The library view relies on the Project Gutenberg feed served through RapidAPI. To configure access:
+
+1. Create `.env.local` in the project root (or copy `.env.local.example`).
+2. Add your RapidAPI credential: `RAPIDAPI_KEY=your-rapidapi-key`.
+3. Restart the Next.js dev server so the new env variable is picked up.
+
+Requests from the client go through `/api/books`, a server-side proxy that injects the key and aggregates the first 60 titles. Keeping the key on the server prevents exposing it to browsers or version control.
+
 ## 📁 Project Structure
 
 ```
