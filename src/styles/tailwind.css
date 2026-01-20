@@ -1,0 +1,430 @@
+@import url("https://fonts.googleapis.com/css2?family=Crimson+Text:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Primary Colors */
+    --color-primary: #ff6b35;
+    /* orange-500 */
+    --color-primary-foreground: #ffffff;
+    /* white */
+
+    /* Secondary Colors */
+    --color-secondary: #2563eb;
+    /* blue-600 */
+    --color-secondary-foreground: #ffffff;
+    /* white */
+
+    /* Accent Colors */
+    --color-accent: #8b5cf6;
+    /* purple-500 */
+    --color-accent-foreground: #ffffff;
+    /* white */
+
+    /* Background Colors */
+    --color-background: #fafafa;
+    /* gray-50 */
+    --color-foreground: #1f2937;
+    /* gray-800 */
+
+    /* Surface Colors */
+    --color-card: #ffffff;
+    /* white */
+    --color-card-foreground: #374151;
+    /* gray-700 */
+
+    /* Popover Colors */
+    --color-popover: #ffffff;
+    /* white */
+    --color-popover-foreground: #374151;
+    /* gray-700 */
+
+    /* Muted Colors */
+    --color-muted: #f3f4f6;
+    /* gray-100 */
+    --color-muted-foreground: #6b7280;
+    /* gray-500 */
+
+    /* Destructive Colors */
+    --color-destructive: #ef4444;
+    /* red-500 */
+    --color-destructive-foreground: #ffffff;
+    /* white */
+
+    /* Success Colors */
+    --color-success: #10b981;
+    /* green-500 */
+    --color-success-foreground: #ffffff;
+    /* white */
+
+    /* Warning Colors */
+    --color-warning: #f59e0b;
+    /* amber-500 */
+    --color-warning-foreground: #ffffff;
+    /* white */
+
+    /* Error Colors */
+    --color-error: #ef4444;
+    /* red-500 */
+    --color-error-foreground: #ffffff;
+    /* white */
+
+    /* Border & Input */
+    --color-border: #e5e7eb;
+    /* gray-200 */
+    --color-input: #e5e7eb;
+    /* gray-200 */
+    --color-ring: #ff6b35;
+    /* orange-500 */
+
+    /* Radius */
+    --radius-sm: 6px;
+    --radius-md: 12px;
+    --radius-lg: 18px;
+    --radius-xl: 24px;
+  }
+
+  .dark {
+    /* Primary Colors */
+    --color-primary: #ff8c5a;
+    /* orange-400 */
+    --color-primary-foreground: #ffffff;
+    /* white */
+
+    /* Secondary Colors */
+    --color-secondary: #3b82f6;
+    /* blue-500 */
+    --color-secondary-foreground: #ffffff;
+    /* white */
+
+    /* Accent Colors */
+    --color-accent: #a78bfa;
+    /* purple-400 */
+    --color-accent-foreground: #ffffff;
+    /* white */
+
+    /* Background Colors */
+    --color-background: #0f0f0f;
+    /* gray-950 */
+    --color-foreground: #e5e7eb;
+    /* gray-200 */
+
+    /* Surface Colors */
+    --color-card: #1a1a1a;
+    /* gray-900 */
+    --color-card-foreground: #d1d5db;
+    /* gray-300 */
+
+    /* Popover Colors */
+    --color-popover: #1a1a1a;
+    /* gray-900 */
+    --color-popover-foreground: #d1d5db;
+    /* gray-300 */
+
+    /* Muted Colors */
+    --color-muted: #2d2d2d;
+    /* gray-800 */
+    --color-muted-foreground: #9ca3af;
+    /* gray-400 */
+
+    /* Destructive Colors */
+    --color-destructive: #f87171;
+    /* red-400 */
+    --color-destructive-foreground: #ffffff;
+    /* white */
+
+    /* Success Colors */
+    --color-success: #34d399;
+    /* green-400 */
+    --color-success-foreground: #ffffff;
+    /* white */
+
+    /* Warning Colors */
+    --color-warning: #fbbf24;
+    /* amber-400 */
+    --color-warning-foreground: #ffffff;
+    /* white */
+
+    /* Error Colors */
+    --color-error: #f87171;
+    /* red-400 */
+    --color-error-foreground: #ffffff;
+    /* white */
+
+    /* Border & Input */
+    --color-border: #374151;
+    /* gray-700 */
+    --color-input: #374151;
+    /* gray-700 */
+    --color-ring: #ff8c5a;
+    /* orange-400 */
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: "Source Sans 3", sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: "Crimson Text", serif;
+  }
+
+  h1 {
+    font-size: 2.25rem;
+    line-height: 1.2;
+  }
+
+  h2 {
+    font-size: 1.875rem;
+    line-height: 1.25;
+  }
+
+  h3 {
+    font-size: 1.5rem;
+    line-height: 1.3;
+  }
+
+  h4 {
+    font-size: 1.25rem;
+    line-height: 1.4;
+  }
+
+  h5 {
+    font-size: 1.125rem;
+    line-height: 1.5;
+  }
+
+  .font-caption {
+    font-family: "IBM Plex Sans", sans-serif;
+    font-size: 0.875rem;
+    line-height: 1.4;
+    letter-spacing: 0.025em;
+  }
+
+  .font-data {
+    font-family: "JetBrains Mono", monospace;
+    font-feature-settings:
+      "tnum" on,
+      "lnum" on;
+  }
+
+  @media (max-width: 768px) {
+    body {
+      font-size: 15px;
+    }
+  }
+}
+
+@layer components {
+  .reading-session-header {
+    @apply fixed top-0 left-0 right-0 z-[75] bg-card border-b transition-transform duration-300 ease-out;
+  }
+
+  .reading-session-header.hidden {
+    @apply -translate-y-full;
+  }
+
+  .reading-session-header-content {
+    @apply flex items-center justify-between px-6 py-3 max-w-7xl mx-auto;
+  }
+
+  .reading-session-logo {
+    @apply flex items-center gap-3;
+  }
+
+  .reading-session-logo-icon {
+    @apply w-8 h-8 rounded-lg flex items-center justify-center;
+  }
+
+  .reading-session-logo-text {
+    @apply text-lg font-semibold text-foreground;
+    font-family: "Crimson Text", serif;
+  }
+
+  .reading-session-actions {
+    @apply flex items-center gap-3;
+  }
+
+  .library-nav-bar {
+    @apply sticky top-0 z-10 bg-card border-b shadow-sm;
+  }
+
+  .library-nav-content {
+    @apply flex items-center justify-between px-6 py-4 max-w-7xl mx-auto gap-4;
+  }
+
+  .library-search-container {
+    @apply flex-1 max-w-md;
+  }
+
+  .library-filter-chips {
+    @apply flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide;
+  }
+
+  .library-view-toggle {
+    @apply flex items-center gap-2 bg-muted rounded-lg p-1;
+  }
+
+  .settings-modal-overlay {
+    @apply fixed inset-0 z-[1000] bg-background flex items-start justify-center pt-[8vh] overflow-y-auto;
+  }
+
+  .settings-modal-content {
+    @apply w-full max-w-4xl bg-card rounded-[18px] shadow-2xl mb-8 overflow-hidden;
+  }
+
+  .settings-modal-header {
+    @apply flex items-center justify-between px-8 py-6 border-b;
+  }
+
+  .settings-modal-title {
+    @apply text-2xl font-semibold text-foreground;
+    font-family: "Crimson Text", serif;
+  }
+
+  .settings-modal-body {
+    @apply flex;
+  }
+
+  .settings-nav-sidebar {
+    @apply w-64 border-r;
+  }
+
+  .settings-nav-list {
+    @apply py-4;
+  }
+
+  .settings-nav-item {
+    @apply flex items-center gap-3 px-6 py-3 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors duration-200 cursor-pointer;
+  }
+
+  .settings-nav-item.active {
+    @apply text-primary border-r-2 border-primary;
+  }
+
+  .settings-content-area {
+    @apply flex-1 p-8 overflow-y-auto max-h-[70vh];
+  }
+
+  .settings-section {
+    @apply mb-8 last:mb-0;
+  }
+
+  .settings-section-title {
+    @apply text-lg font-semibold text-foreground mb-4;
+    font-family: "Crimson Text", serif;
+  }
+
+  .settings-section-description {
+    @apply text-sm text-muted-foreground mb-6;
+  }
+
+  .quick-access-controls {
+    @apply fixed bottom-0 left-0 right-0 z-[75] bg-card border-t shadow-lg transition-transform duration-300 ease-out;
+  }
+
+  .quick-access-controls.minimized {
+    @apply translate-y-[calc(100%-60px)];
+  }
+
+  .quick-access-header {
+    @apply flex items-center justify-between px-6 py-3 cursor-pointer transition-colors duration-200;
+  }
+
+  .quick-access-body {
+    @apply px-6 pb-6 pt-2;
+  }
+
+  .quick-access-grid {
+    @apply grid grid-cols-1 md:grid-cols-3 gap-6;
+  }
+
+  .quick-access-section {
+    @apply space-y-3;
+  }
+
+  .quick-access-label {
+    @apply text-sm font-medium text-muted-foreground mb-2 block;
+    font-family: "IBM Plex Sans", sans-serif;
+  }
+
+  @media (max-width: 768px) {
+    .library-nav-content {
+      @apply flex-col items-stretch gap-3 px-4 py-3;
+    }
+
+    .library-search-container {
+      @apply max-w-full;
+    }
+
+    .library-filter-chips {
+      @apply -mx-4 px-4;
+    }
+
+    .settings-modal-content {
+      @apply rounded-none h-full mb-0;
+    }
+
+    .settings-modal-body {
+      @apply flex-col;
+    }
+
+    .settings-nav-sidebar {
+      @apply w-full border-r-0 border-b;
+    }
+
+    .settings-nav-list {
+      @apply flex overflow-x-auto pb-2 scrollbar-hide;
+    }
+
+    .settings-nav-item {
+      @apply whitespace-nowrap border-r-0 border-b-2 border-transparent;
+    }
+
+    .settings-nav-item.active {
+      @apply border-b-2 border-primary border-r-0;
+    }
+
+    .settings-content-area {
+      @apply p-4 max-h-none;
+    }
+
+    .quick-access-grid {
+      @apply grid-cols-1 gap-4;
+    }
+
+    .reading-session-header-content {
+      @apply px-4 py-2;
+    }
+
+    .reading-session-logo-text {
+      @apply text-base;
+    }
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
