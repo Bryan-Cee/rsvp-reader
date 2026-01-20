@@ -92,8 +92,35 @@ The app is built with responsive design using Tailwind CSS breakpoints.
 
 ## 📦 Deployment
 
+### GitHub Pages
+
+This project is configured for automatic deployment to GitHub Pages. When you push changes to the `main` branch, a GitHub Actions workflow will automatically build and deploy the application.
+
+#### Initial Setup
+
+To enable GitHub Pages for your repository:
+
+1. Go to your repository on GitHub
+2. Navigate to **Settings** → **Pages**
+3. Under **Source**, select **GitHub Actions**
+4. Push to the `main` branch to trigger the deployment
+
+The application will be available at: `https://bryan-cee.github.io/rsvp-reader/`
+
+#### Manual Deployment
+
+You can also manually trigger a deployment:
+
+1. Go to the **Actions** tab in your GitHub repository
+2. Select the **Deploy to GitHub Pages** workflow
+3. Click **Run workflow**
+
+### Local Build
+
 Build the application for production:
 
 ```bash
 npm run build
 ```
+
+The built files will be in the `build` directory.
