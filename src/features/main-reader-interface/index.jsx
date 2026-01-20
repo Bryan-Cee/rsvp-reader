@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Icon from "../../components/AppIcon";
+import AppHeader from "../../components/navigation/AppHeader";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import FileUploadZone from "./components/FileUploadZone";
@@ -230,34 +230,19 @@ const MainReaderInterface = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 bg-card border-b border-border/60 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 md:w-12 md:h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Icon name="Zap" size={24} color="var(--color-primary)" />
-              </div>
-              <div>
-                <h1 className="text-xl md:text-2xl lg:text-3xl font-semibold text-foreground">
-                  SpeedReader
-                </h1>
-                <p className="text-xs md:text-sm text-muted-foreground">
-                  Read faster, comprehend better
-                </p>
-              </div>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              iconName="Settings"
-              iconPosition="left"
-              onClick={handleSettingsClick}
-            >
-              Settings
-            </Button>
-          </div>
-        </div>
-      </header>
+      <AppHeader
+        actions={
+          <Button
+            variant="outline"
+            size="sm"
+            iconName="Settings"
+            iconPosition="left"
+            onClick={handleSettingsClick}
+          >
+            Settings
+          </Button>
+        }
+      />
       <main className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-6 md:py-8 lg:py-12 space-y-6 md:space-y-8 lg:space-y-12">
         <section>
           <FileUploadZone onFileUpload={handleFileUpload} />

@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
-import ReadingSessionHeader from "../../components/navigation/ReadingSessionHeader";
+import { useRouter, useSearchParams } from "next/navigation";
+import AppHeader from "../../components/navigation/AppHeader";
 import QuickAccessControls from "../../components/navigation/QuickAccessControls";
 import SettingsModal from "../../components/navigation/SettingsModal";
+import Button from "../../components/ui/Button";
 import RSVPDisplay from "./components/RSVPDisplay";
 import PlaybackControls from "./components/PlaybackControls";
 import ControlPanel from "./components/ControlPanel";
@@ -16,6 +17,7 @@ import {
 
 const RSVPReaderView = () => {
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   const mockBookContent = `Speed reading is a collection of techniques that aim to increase reading speed without significantly reducing comprehension or retention. The concept gained popularity in the 1950s and 1960s with the development of various training programs and devices.\n\nOne of the most effective methods is RSVP, or Rapid Serial Visual Presentation. This technique displays words sequentially at a fixed location on the screen, eliminating the need for eye movement. By reducing the physical movement of the eyes, readers can focus entirely on processing the text, leading to significant improvements in reading speed.\n\nResearch has shown that the average person reads at about 200-250 words per minute. With proper training and the right tools, many people can double or even triple their reading speed while maintaining good comprehension. The key is consistent practice and gradually increasing the speed as you become more comfortable with the technique.\n\nModern technology has made speed reading more accessible than ever. Digital tools can automatically adjust the presentation speed, highlight focal points in words, and track your progress over time. These features help readers develop their skills more effectively than traditional methods.\n\nHowever, it's important to note that speed reading isn't suitable for all types of content. Complex technical material, poetry, or texts that require deep analysis may benefit from slower, more careful reading. The goal is to have the flexibility to adjust your reading speed based on the content and your purpose for reading.`;
 
@@ -233,9 +235,29 @@ const RSVPReaderView = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <ReadingSessionHeader
-        onSettingsOpen={() => setIsSettingsOpen(true)}
-        readingProgress={readingProgress}
+      <AppHeader
+        actions={
+          <>
+            <Button
+              variant="ghost"
+              size="sm"
+              iconName="Settings"
+              iconPosition="left"
+              onClick={() => setIsSettingsOpen(true)}
+            >
+              Settings
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              iconName="ArrowLeft"
+              iconPosition="left"
+              onClick={() => router.push("/main-reader-interface")}
+            >
+              Library
+            </Button>
+          </>
+        }
       />
       <main className="flex-1 flex flex-col pt-16 md:pt-20">
         <RSVPDisplay
