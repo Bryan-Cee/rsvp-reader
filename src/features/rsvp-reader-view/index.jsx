@@ -10,31 +10,32 @@ import RSVPDisplay from "./components/RSVPDisplay";
 import PlaybackControls from "./components/PlaybackControls";
 import ControlPanel from "./components/ControlPanel";
 import {
+  DEFAULT_READER_SETTINGS,
   loadReaderSettings,
   saveReaderSettings,
   applyThemeFromSettings,
 } from "../../utils/readerSettings";
 import { remapGutenbergTextUrl } from "../../utils/gutenberg";
+import StorageEvictionDialog from "../../components/storage/StorageEvictionDialog";
+import {
+  calculateEvictionPlan,
+  evictBookContentEntries,
+  getBookContentById,
+  getBookRecord,
+  getLibraryEntry,
+  getReadingProgressRecord,
+  recordBookOpenedSnapshot,
+  saveBookContentToStore,
+  saveReadingProgressRecord,
+  estimateTextByteSize,
+} from "../../utils/storage/indexedDb";
 
 const DEFAULT_BOOK_CONTENT = `Speed reading is a collection of techniques that aim to increase reading speed without significantly reducing comprehension or retention. The concept gained popularity in the 1950s and 1960s with the development of various training programs and devices.\n\nOne of the most effective methods is RSVP, or Rapid Serial Visual Presentation. This technique displays words sequentially at a fixed location on the screen, eliminating the need for eye movement. By reducing the physical movement of the eyes, readers can focus entirely on processing the text, leading to significant improvements in reading speed.\n\nResearch has shown that the average person reads at about 200-250 words per minute. With proper training and the right tools, many people can double or even triple their reading speed while maintaining good comprehension. The key is consistent practice and gradually increasing the speed as you become more comfortable with the technique.\n\nModern technology has made speed reading more accessible than ever. Digital tools can automatically adjust the presentation speed, highlight focal points in words, and track your progress over time. These features help readers develop their skills more effectively than traditional methods.\n\nHowever, it's important to note that speed reading isn't suitable for all types of content. Complex technical material, poetry, or texts that require deep analysis may benefit from slower, more careful reading. The goal is to have the flexibility to adjust your reading speed based on the content and your purpose for reading.`;
-
-const LIBRARY_STORAGE_KEY = "speedReader:libraryBooks";
-const OPENED_BOOKS_KEY = "speedReader:openedBooks";
-const BOOK_CONTENT_CACHE_PREFIX = "speedReader:bookContent:";
-const PROGRESS_STORAGE_PREFIX = "speedReader:progress:";
 
 const buildBaseReadingState = () => ({
   isPlaying: false,
   currentWordIndex: 0,
-  readingSpeed: 350,
-  wordsPerFrame: 1,
-  fontSize: 16,
-  fontFamily: "source-sans",
-  theme: "light",
-  showFocalPoint: true,
-  smartHighlighting: true,
-  pauseOnPunctuation: false,
-  pauseOnLongWords: false,
+  ...DEFAULT_READER_SETTINGS,
 });
 
 const RSVPReaderView = () => {
@@ -58,6 +59,9 @@ const RSVPReaderView = () => {
   const [hasHydratedSettings, setHasHydratedSettings] = useState(false);
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [pendingContentJob, setPendingContentJob] = useState(null);
+  const [evictionPlan, setEvictionPlan] = useState(null);
+  const [isEvicting, setIsEvicting] = useState(false);
   const playbackTimeoutRef = useRef(null);
 
   const persistableSettings = useMemo(
@@ -85,63 +89,88 @@ const RSVPReaderView = () => {
     ],
   );
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const bookId = searchParams?.get("bookId");
-    const fallbackMeta = {
-      id: bookId,
-      title: searchParams?.get("bookTitle") || "Introduction to Speed Reading",
-      author: searchParams?.get("bookAuthor") || "Reading Expert",
-      textUrl: searchParams?.get("textUrl") || null,
-    };
-
-    const safeParse = (value) => {
-      if (!value) return null;
+  const persistContentToIndexedDb = useCallback(
+    async (text, fetchedVia = "proxy") => {
+      if (!bookMeta?.id || typeof text !== "string") return;
       try {
-        return JSON.parse(value);
+        const byteSize = estimateTextByteSize(text);
+        const plan = await calculateEvictionPlan(byteSize);
+        if (!plan || plan.canStore) {
+          await saveBookContentToStore(bookMeta.id, text, {
+            fetchedVia,
+            bookSnapshot: bookMeta,
+          });
+          return;
+        }
+
+        setPendingContentJob({
+          text,
+          fetchedVia,
+          byteSize,
+          bookSnapshot: bookMeta,
+        });
+        setEvictionPlan(plan);
       } catch (error) {
-        console.warn("Failed to parse stored value", error);
-        return null;
+        console.error("Failed to persist book content", error);
       }
+    },
+    [bookMeta],
+  );
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const hydrateBookMeta = async () => {
+      const bookId = searchParams?.get("bookId");
+      const fallbackMeta = {
+        id: bookId,
+        title:
+          searchParams?.get("bookTitle") || "Introduction to Speed Reading",
+        author: searchParams?.get("bookAuthor") || "Reading Expert",
+        textUrl: searchParams?.get("textUrl") || null,
+      };
+
+      let resolvedMeta = fallbackMeta;
+
+      if (bookId) {
+        try {
+          const libraryEntry = await getLibraryEntry(bookId);
+          if (libraryEntry?.bookSnapshot) {
+            resolvedMeta = libraryEntry.bookSnapshot;
+          } else {
+            const bookRecord = await getBookRecord(bookId);
+            if (bookRecord?.bookSnapshot) {
+              resolvedMeta = bookRecord.bookSnapshot;
+            }
+          }
+        } catch (error) {
+          console.error("Failed to hydrate book metadata", error);
+        }
+      }
+
+      if (!isMounted) return;
+      setBookMeta(resolvedMeta);
+      setIsContentLoading(true);
+      setContentError(null);
     };
 
-    let resolvedMeta = fallbackMeta;
+    hydrateBookMeta();
 
-    if (bookId) {
-      const library = safeParse(
-        window.localStorage.getItem(LIBRARY_STORAGE_KEY),
-      );
-      if (Array.isArray(library)) {
-        const fromLibrary = library.find(
-          (entry) => String(entry?.id) === String(bookId),
-        );
-        if (fromLibrary) {
-          resolvedMeta = fromLibrary;
-        }
-      }
-
-      if (!resolvedMeta?.textUrl) {
-        const openedBooks = safeParse(
-          window.localStorage.getItem(OPENED_BOOKS_KEY),
-        );
-        if (openedBooks?.[bookId]) {
-          resolvedMeta = openedBooks[bookId];
-        }
-      }
-    }
-
-    setBookMeta(resolvedMeta);
-    setIsContentLoading(true);
-    setContentError(null);
+    return () => {
+      isMounted = false;
+    };
   }, [searchParams]);
+
+  useEffect(() => {
+    if (!bookMeta?.id) return;
+    recordBookOpenedSnapshot(bookMeta).catch((error) => {
+      console.warn("Failed to record book opened state", error);
+    });
+  }, [bookMeta]);
 
   useEffect(() => {
     if (!bookMeta) return;
 
-    const cacheKey = bookMeta?.id
-      ? `${BOOK_CONTENT_CACHE_PREFIX}${bookMeta.id}`
-      : null;
     const preferredTextUrl = remapGutenbergTextUrl(bookMeta?.textUrl);
     const candidateUrls = Array.from(
       new Set(
@@ -168,21 +197,21 @@ const RSVPReaderView = () => {
       setIsContentLoading(false);
     };
 
-    if (typeof window !== "undefined" && cacheKey) {
-      const cachedContent = window.localStorage.getItem(cacheKey);
-      if (cachedContent) {
-        applyContent(cachedContent);
-        return;
-      }
-    }
-
-    if (candidateUrls.length === 0) {
-      setContentError("This title does not provide a plain text format.");
-      applyContent(DEFAULT_BOOK_CONTENT);
-      return;
-    }
-
     let didCancel = false;
+
+    const hydrateFromCache = async () => {
+      if (!bookMeta?.id) return false;
+      try {
+        const cached = await getBookContentById(bookMeta.id);
+        if (cached?.content && !didCancel) {
+          applyContent(cached.content);
+          return true;
+        }
+      } catch (error) {
+        console.warn("Failed to load cached book content", error);
+      }
+      return false;
+    };
 
     const fetchContent = async () => {
       setIsContentLoading(true);
@@ -206,31 +235,8 @@ const RSVPReaderView = () => {
           const text = await response.text();
           if (didCancel) return;
 
-          if (typeof window !== "undefined" && cacheKey) {
-            window.localStorage.setItem(cacheKey, text);
-
-            if (bookMeta?.id) {
-              try {
-                const openedRaw = window.localStorage.getItem(OPENED_BOOKS_KEY);
-                const opened = openedRaw ? JSON.parse(openedRaw) : {};
-                opened[bookMeta.id] = {
-                  ...bookMeta,
-                  textUrl: url,
-                };
-                window.localStorage.setItem(
-                  OPENED_BOOKS_KEY,
-                  JSON.stringify(opened),
-                );
-              } catch (storageError) {
-                console.warn(
-                  "Failed to persist opened book metadata",
-                  storageError,
-                );
-              }
-            }
-          }
-
           applyContent(text);
+          await persistContentToIndexedDb(text, "proxy");
           return;
         } catch (error) {
           lastError = error;
@@ -245,22 +251,79 @@ const RSVPReaderView = () => {
       applyContent(DEFAULT_BOOK_CONTENT);
     };
 
-    fetchContent();
+    const resolveContent = async () => {
+      const hasCache = await hydrateFromCache();
+      if (hasCache) return;
+
+      if (candidateUrls.length === 0) {
+        setContentError("This title does not provide a plain text format.");
+        applyContent(DEFAULT_BOOK_CONTENT);
+        return;
+      }
+
+      await fetchContent();
+    };
+
+    resolveContent();
 
     return () => {
       didCancel = true;
     };
-  }, [bookMeta, searchParams, retrySignal]);
+  }, [bookMeta, persistContentToIndexedDb, retrySignal, searchParams]);
 
   const handleRetryContentLoad = useCallback(() => {
     setContentError(null);
     setIsContentLoading(true);
+    setEvictionPlan(null);
+    setPendingContentJob(null);
     setRetrySignal((prev) => prev + 1);
   }, []);
 
   const handleNavigateHome = useCallback(() => {
     router.push("/main-reader-interface");
   }, [router]);
+
+  const handleConfirmEviction = useCallback(async () => {
+    if (!bookMeta?.id || !pendingContentJob || !evictionPlan) return;
+    if (!evictionPlan?.suggested?.length) {
+      setEvictionPlan(null);
+      return;
+    }
+
+    setIsEvicting(true);
+    try {
+      const idsToEvict = evictionPlan.suggested
+        .map((entry) => entry?.bookId)
+        .filter(Boolean);
+      if (idsToEvict.length > 0) {
+        await evictBookContentEntries(idsToEvict);
+      }
+
+      const recheckPlan = await calculateEvictionPlan(
+        pendingContentJob.byteSize,
+      );
+      if (recheckPlan && !recheckPlan.canStore) {
+        setEvictionPlan(recheckPlan);
+        return;
+      }
+
+      await saveBookContentToStore(bookMeta.id, pendingContentJob.text, {
+        fetchedVia: pendingContentJob.fetchedVia ?? "proxy",
+        bookSnapshot: pendingContentJob.bookSnapshot ?? bookMeta,
+      });
+      setPendingContentJob(null);
+      setEvictionPlan(null);
+    } catch (error) {
+      console.error("Failed to evict cached books", error);
+    } finally {
+      setIsEvicting(false);
+    }
+  }, [bookMeta, pendingContentJob, evictionPlan]);
+
+  const handleCancelEvictionPrompt = useCallback(() => {
+    setPendingContentJob(null);
+    setEvictionPlan(null);
+  }, []);
 
   const words = useMemo(() => {
     if (!bookData?.content) return [];
@@ -289,43 +352,101 @@ const RSVPReaderView = () => {
   }, [readingState?.theme]);
 
   useEffect(() => {
-    const persisted = loadReaderSettings();
+    if (!bookMeta?.id || !bookData?.totalWords) return;
+    let didCancel = false;
 
-    setReadingState((prev) => ({
-      ...prev,
-      readingSpeed: persisted?.readingSpeed ?? prev.readingSpeed,
-      wordsPerFrame: persisted?.wordsPerFrame ?? prev.wordsPerFrame,
-      fontSize: persisted?.fontSize ?? prev.fontSize,
-      fontFamily: persisted?.fontFamily || prev.fontFamily,
-      theme: persisted?.theme || prev.theme,
-      showFocalPoint:
-        typeof persisted?.showFocalPoint === "boolean"
-          ? persisted.showFocalPoint
-          : prev.showFocalPoint,
-      smartHighlighting:
-        typeof persisted?.smartHighlighting === "boolean"
-          ? persisted.smartHighlighting
-          : prev.smartHighlighting,
-      pauseOnPunctuation:
-        typeof persisted?.pauseOnPunctuation === "boolean"
-          ? persisted.pauseOnPunctuation
-          : prev.pauseOnPunctuation,
-      pauseOnLongWords:
-        typeof persisted?.pauseOnLongWords === "boolean"
-          ? persisted.pauseOnLongWords
-          : prev.pauseOnLongWords,
-    }));
+    const restoreProgress = async () => {
+      try {
+        const progress = await getReadingProgressRecord(bookMeta.id);
+        if (!progress || didCancel) return;
+        setReadingState((prev) => ({
+          ...prev,
+          currentWordIndex: Math.min(
+            progress.currentWordIndex ?? 0,
+            Math.max(0, (bookData?.totalWords ?? 1) - 1),
+          ),
+        }));
+      } catch (error) {
+        console.warn("Failed to restore reading progress", error);
+      }
+    };
 
-    setHasHydratedSettings(true);
+    restoreProgress();
+
+    return () => {
+      didCancel = true;
+    };
+  }, [bookMeta?.id, bookData?.totalWords]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const hydrateReaderSettings = async () => {
+      try {
+        const persisted = await loadReaderSettings();
+        if (!isMounted) return;
+        setReadingState((prev) => ({
+          ...prev,
+          readingSpeed: persisted?.readingSpeed ?? prev.readingSpeed,
+          wordsPerFrame: persisted?.wordsPerFrame ?? prev.wordsPerFrame,
+          fontSize: persisted?.fontSize ?? prev.fontSize,
+          fontFamily: persisted?.fontFamily || prev.fontFamily,
+          theme: persisted?.theme || prev.theme,
+          showFocalPoint:
+            typeof persisted?.showFocalPoint === "boolean"
+              ? persisted.showFocalPoint
+              : prev.showFocalPoint,
+          smartHighlighting:
+            typeof persisted?.smartHighlighting === "boolean"
+              ? persisted.smartHighlighting
+              : prev.smartHighlighting,
+          pauseOnPunctuation:
+            typeof persisted?.pauseOnPunctuation === "boolean"
+              ? persisted.pauseOnPunctuation
+              : prev.pauseOnPunctuation,
+          pauseOnLongWords:
+            typeof persisted?.pauseOnLongWords === "boolean"
+              ? persisted.pauseOnLongWords
+              : prev.pauseOnLongWords,
+        }));
+
+        setHasHydratedSettings(true);
+      } catch (error) {
+        console.error("Failed to load reader settings", error);
+        if (!isMounted) return;
+        setHasHydratedSettings(true);
+      }
+    };
+
+    hydrateReaderSettings();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
     if (!hasHydratedSettings) return;
-    saveReaderSettings(persistableSettings);
+    let didCancel = false;
+
+    const persistSettings = async () => {
+      try {
+        await saveReaderSettings(persistableSettings);
+      } catch (error) {
+        if (!didCancel) {
+          console.error("Failed to persist reader settings", error);
+        }
+      }
+    };
+
+    persistSettings();
+
+    return () => {
+      didCancel = true;
+    };
   }, [persistableSettings, hasHydratedSettings]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
     if (!bookMeta?.id || isContentLoading) return;
 
     const totalTrackedWords = totalWords ?? 0;
@@ -340,14 +461,9 @@ const RSVPReaderView = () => {
       updatedAt: Date.now(),
     };
 
-    try {
-      window.localStorage.setItem(
-        `${PROGRESS_STORAGE_PREFIX}${bookMeta.id}`,
-        JSON.stringify(progressPayload),
-      );
-    } catch (error) {
+    saveReadingProgressRecord(bookMeta.id, progressPayload).catch((error) => {
       console.warn("Failed to persist reading progress", error);
-    }
+    });
   }, [
     bookMeta?.id,
     totalWords,
@@ -503,7 +619,7 @@ const RSVPReaderView = () => {
     }));
   }, []);
 
-  const handleSettingsSave = useCallback((newSettings) => {
+  const handleSettingsSave = useCallback(async (newSettings) => {
     const updatedState = {
       readingSpeed: newSettings?.readingSpeed,
       fontSize: newSettings?.fontSize,
@@ -518,14 +634,18 @@ const RSVPReaderView = () => {
       ...updatedState,
     }));
 
-    const persisted = loadReaderSettings();
-    const mergedSettings = {
-      ...persisted,
-      ...updatedState,
-    };
+    try {
+      const persisted = await loadReaderSettings();
+      const mergedSettings = {
+        ...persisted,
+        ...updatedState,
+      };
 
-    saveReaderSettings(mergedSettings);
-    applyThemeFromSettings(mergedSettings?.theme);
+      await saveReaderSettings(mergedSettings);
+      applyThemeFromSettings(mergedSettings?.theme);
+    } catch (error) {
+      console.error("Failed to save reader settings", error);
+    }
   }, []);
 
   return (
@@ -659,6 +779,14 @@ const RSVPReaderView = () => {
           </div>
         </div>
       )}
+
+      <StorageEvictionDialog
+        isOpen={Boolean(evictionPlan && !evictionPlan.canStore)}
+        plan={evictionPlan}
+        onConfirm={handleConfirmEviction}
+        onCancel={handleCancelEvictionPrompt}
+        isProcessing={isEvicting}
+      />
     </div>
   );
 };

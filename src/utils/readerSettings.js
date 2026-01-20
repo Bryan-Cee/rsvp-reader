@@ -1,42 +1,43 @@
-const STORAGE_KEY = "speedReader:settings";
+import {
+  getReaderSettingsRecord,
+  putReaderSettingsRecord,
+} from "./storage/indexedDb";
 
 export const DEFAULT_READER_SETTINGS = {
   readingSpeed: 350,
   fontSize: 16,
-  fontFamily: "sans",
+  fontFamily: "source-sans",
   theme: "light",
   wordsPerFrame: 1,
-  pauseOnPunctuation: true,
+  pauseOnPunctuation: false,
   pauseOnLongWords: false,
   showFocalPoint: true,
-  smartHighlighting: false,
+  smartHighlighting: true,
 };
 
-export function loadReaderSettings() {
+export async function loadReaderSettings() {
   if (typeof window === "undefined") return DEFAULT_READER_SETTINGS;
 
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_READER_SETTINGS;
-
-    const parsed = JSON.parse(raw);
+    const record = await getReaderSettingsRecord();
+    if (!record) return DEFAULT_READER_SETTINGS;
     return {
       ...DEFAULT_READER_SETTINGS,
-      ...parsed,
+      ...record,
     };
   } catch (error) {
-    console.error("Failed to load reader settings from localStorage", error);
+    console.error("Failed to load reader settings from IndexedDB", error);
     return DEFAULT_READER_SETTINGS;
   }
 }
 
-export function saveReaderSettings(settings) {
+export async function saveReaderSettings(settings) {
   if (typeof window === "undefined") return;
 
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    await putReaderSettingsRecord(settings);
   } catch (error) {
-    console.error("Failed to save reader settings to localStorage", error);
+    console.error("Failed to save reader settings to IndexedDB", error);
   }
 }
 

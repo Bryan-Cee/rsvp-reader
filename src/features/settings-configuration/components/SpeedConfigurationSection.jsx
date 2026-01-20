@@ -1,38 +1,41 @@
-import { useState } from 'react';
-import Button from '../../../components/ui/Button';
-
+import { useEffect, useState } from "react";
+import Button from "../../../components/ui/Button";
 
 const SpeedConfigurationSection = ({ settings, onSettingChange }) => {
   const [localSpeed, setLocalSpeed] = useState(settings?.readingSpeed || 350);
 
+  useEffect(() => {
+    setLocalSpeed(settings?.readingSpeed || 350);
+  }, [settings?.readingSpeed]);
+
   const speedPresets = [
-    { label: 'Slow', value: 150, description: 'Beginner friendly' },
-    { label: 'Normal', value: 250, description: 'Average reading pace' },
-    { label: 'Fast', value: 400, description: 'Experienced readers' },
-    { label: 'Rapid', value: 600, description: 'Advanced speed reading' }
+    { label: "Slow", value: 150, description: "Beginner friendly" },
+    { label: "Normal", value: 250, description: "Average reading pace" },
+    { label: "Fast", value: 400, description: "Experienced readers" },
+    { label: "Rapid", value: 600, description: "Advanced speed reading" },
   ];
 
   const wordsPerFrameOptions = [
-    { value: 1, label: '1 Word', description: 'Maximum focus' },
-    { value: 2, label: '2 Words', description: 'Balanced approach' },
-    { value: 3, label: '3 Words', description: 'Faster reading' }
+    { value: 1, label: "1 Word", description: "Maximum focus" },
+    { value: 2, label: "2 Words", description: "Balanced approach" },
+    { value: 3, label: "3 Words", description: "Faster reading" },
   ];
 
   const handleSpeedChange = (e) => {
     const value = parseInt(e?.target?.value);
     setLocalSpeed(value);
-    onSettingChange('readingSpeed', value);
+    onSettingChange("readingSpeed", value);
   };
 
   const handlePresetClick = (value) => {
     setLocalSpeed(value);
-    onSettingChange('readingSpeed', value);
+    onSettingChange("readingSpeed", value);
   };
 
   const adjustSpeed = (delta) => {
     const newSpeed = Math.max(50, Math.min(1000, localSpeed + delta));
     setLocalSpeed(newSpeed);
-    onSettingChange('readingSpeed', newSpeed);
+    onSettingChange("readingSpeed", newSpeed);
   };
 
   return (
@@ -81,7 +84,7 @@ const SpeedConfigurationSection = ({ settings, onSettingChange }) => {
             onChange={handleSpeedChange}
             className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
             style={{
-              background: `linear-gradient(to right, var(--color-primary) 0%, var(--color-primary) ${((localSpeed - 50) / 950) * 100}%, var(--color-muted) ${((localSpeed - 50) / 950) * 100}%, var(--color-muted) 100%)`
+              background: `linear-gradient(to right, var(--color-primary) 0%, var(--color-primary) ${((localSpeed - 50) / 950) * 100}%, var(--color-muted) ${((localSpeed - 50) / 950) * 100}%, var(--color-muted) 100%)`,
             }}
           />
 
@@ -99,7 +102,7 @@ const SpeedConfigurationSection = ({ settings, onSettingChange }) => {
             {speedPresets?.map((preset) => (
               <Button
                 key={preset?.value}
-                variant={localSpeed === preset?.value ? 'default' : 'outline'}
+                variant={localSpeed === preset?.value ? "default" : "outline"}
                 onClick={() => handlePresetClick(preset?.value)}
                 className="h-auto py-4 flex flex-col items-center gap-1"
               >
@@ -121,21 +124,26 @@ const SpeedConfigurationSection = ({ settings, onSettingChange }) => {
             {wordsPerFrameOptions?.map((option) => (
               <button
                 key={option?.value}
-                onClick={() => onSettingChange('wordsPerFrame', option?.value)}
+                onClick={() => onSettingChange("wordsPerFrame", option?.value)}
                 className={`p-4 md:p-5 rounded-lg md:rounded-xl border-2 transition-all duration-200 text-left ${
                   settings?.wordsPerFrame === option?.value
-                    ? 'border-primary bg-primary/10' :'border-border/60 bg-card hover:border-primary/30'
+                    ? "border-primary bg-primary/10"
+                    : "border-border/60 bg-card hover:border-primary/30"
                 }`}
               >
                 <div className="flex items-center gap-3 mb-2">
-                  <div className={`w-8 h-8 md:w-10 md:h-10 rounded-lg flex items-center justify-center font-bold ${
-                    settings?.wordsPerFrame === option?.value
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-muted text-foreground'
-                  }`}>
+                  <div
+                    className={`w-8 h-8 md:w-10 md:h-10 rounded-lg flex items-center justify-center font-bold ${
+                      settings?.wordsPerFrame === option?.value
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-foreground"
+                    }`}
+                  >
                     {option?.value}
                   </div>
-                  <span className="font-semibold text-foreground">{option?.label}</span>
+                  <span className="font-semibold text-foreground">
+                    {option?.label}
+                  </span>
                 </div>
                 <p className="text-xs md:text-sm text-muted-foreground">
                   {option?.description}

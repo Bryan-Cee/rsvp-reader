@@ -23,11 +23,27 @@ const SettingsConfiguration = () => {
 
   const [settings, setSettings] = useState(defaultSettings);
   const [hasChanges, setHasChanges] = useState(false);
+  const [isPersisting, setIsPersisting] = useState(false);
 
   useEffect(() => {
-    const savedSettings = loadReaderSettings();
-    setSettings(savedSettings);
-    applyThemeFromSettings(savedSettings?.theme);
+    let isMounted = true;
+
+    const hydrateSettings = async () => {
+      try {
+        const savedSettings = await loadReaderSettings();
+        if (!isMounted) return;
+        setSettings(savedSettings);
+        applyThemeFromSettings(savedSettings?.theme);
+      } catch (error) {
+        console.error("Failed to load reader settings", error);
+      }
+    };
+
+    hydrateSettings();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleSettingChange = (key, value) => {
@@ -41,24 +57,32 @@ const SettingsConfiguration = () => {
     setHasChanges(true);
   };
 
-  const handleSaveSettings = () => {
-    saveReaderSettings(settings);
-    applyThemeFromSettings(settings?.theme);
-    setHasChanges(false);
+  const handleSaveSettings = async () => {
+    if (isPersisting) return;
+    setIsPersisting(true);
+    try {
+      await saveReaderSettings(settings);
+      applyThemeFromSettings(settings?.theme);
+      setHasChanges(false);
 
-    const notification = document.createElement("div");
-    notification.className =
-      "fixed top-20 right-4 md:right-8 bg-success text-success-foreground px-6 py-3 rounded-lg shadow-lg z-[100] animate-slide-down";
-    notification.innerHTML = `
-      <div class="flex items-center gap-2">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="20 6 9 17 4 12"></polyline>
-        </svg>
-        <span class="font-medium">Settings saved successfully</span>
-      </div>
-    `;
-    document.body?.appendChild(notification);
-    setTimeout(() => notification?.remove(), 3000);
+      const notification = document.createElement("div");
+      notification.className =
+        "fixed top-20 right-4 md:right-8 bg-success text-success-foreground px-6 py-3 rounded-lg shadow-lg z-[100] animate-slide-down";
+      notification.innerHTML = `
+        <div class="flex items-center gap-2">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          <span class="font-medium">Settings saved successfully</span>
+        </div>
+      `;
+      document.body?.appendChild(notification);
+      setTimeout(() => notification?.remove(), 3000);
+    } catch (error) {
+      console.error("Failed to save reader settings", error);
+    } finally {
+      setIsPersisting(false);
+    }
   };
 
   const handleResetSettings = () => {
@@ -67,25 +91,25 @@ const SettingsConfiguration = () => {
     applyThemeFromSettings(defaultSettings?.theme);
   };
 
-  const handleReturnToReader = () => {
+  const handleReturnToReader = async () => {
     if (hasChanges) {
       const confirmLeave = window.confirm(
         "You have unsaved changes. Do you want to save before leaving?",
       );
       if (confirmLeave) {
-        handleSaveSettings();
+        await handleSaveSettings();
       }
     }
     router.push("/rsvp-reader-view");
   };
 
-  const handleReturnToLibrary = () => {
+  const handleReturnToLibrary = async () => {
     if (hasChanges) {
       const confirmLeave = window.confirm(
         "You have unsaved changes. Do you want to save before leaving?",
       );
       if (confirmLeave) {
-        handleSaveSettings();
+        await handleSaveSettings();
       }
     }
     router.push("/main-reader-interface");
@@ -206,10 +230,10 @@ const SettingsConfiguration = () => {
                   iconName="Save"
                   iconPosition="left"
                   onClick={handleSaveSettings}
-                  disabled={!hasChanges}
+                  disabled={!hasChanges || isPersisting}
                   className="flex-1 md:flex-initial"
                 >
-                  Save Changes
+                  {isPersisting ? "Saving..." : "Save Changes"}
                 </Button>
               </div>
             </div>

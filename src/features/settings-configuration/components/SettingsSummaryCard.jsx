@@ -1,38 +1,49 @@
-import Icon from '../../../components/AppIcon';
-import Button from '../../../components/ui/Button';
+import Icon from "../../../components/AppIcon";
+import Button from "../../../components/ui/Button";
+
+const FONT_FAMILY_LABELS = {
+  "source-sans": "Source Sans 3",
+  crimson: "Crimson Text",
+  "ibm-plex": "IBM Plex Sans",
+  jetbrains: "JetBrains Mono",
+};
 
 const SettingsSummaryCard = ({ settings, onReset }) => {
+  const fontLabel = FONT_FAMILY_LABELS?.[settings?.fontFamily] || "Sans Serif";
   const getSummaryItems = () => {
     return [
       {
-        icon: 'Gauge',
-        label: 'Reading Speed',
-        value: `${settings?.readingSpeed || 350} WPM`
+        icon: "Gauge",
+        label: "Reading Speed",
+        value: `${settings?.readingSpeed || 350} WPM`,
       },
       {
-        icon: 'Type',
-        label: 'Font',
-        value: `${settings?.fontFamily || 'Sans'} - ${settings?.fontSize || 16}px`
+        icon: "Type",
+        label: "Font",
+        value: `${fontLabel} - ${settings?.fontSize || 16}px`,
       },
       {
-        icon: 'Layers',
-        label: 'Words Per Frame',
-        value: `${settings?.wordsPerFrame || 1} word${settings?.wordsPerFrame > 1 ? 's' : ''}`
+        icon: "Layers",
+        label: "Words Per Frame",
+        value: `${settings?.wordsPerFrame || 1} word${settings?.wordsPerFrame > 1 ? "s" : ""}`,
       },
       {
-        icon: 'Palette',
-        label: 'Theme',
-        value: settings?.theme ? settings?.theme?.charAt(0)?.toUpperCase() + settings?.theme?.slice(1) : 'Light'
-      }
+        icon: "Palette",
+        label: "Theme",
+        value: settings?.theme
+          ? settings?.theme?.charAt(0)?.toUpperCase() +
+            settings?.theme?.slice(1)
+          : "Light",
+      },
     ];
   };
 
   const getActiveFeatures = () => {
     const features = [];
-    if (settings?.pauseOnPunctuation) features?.push('Pause on Punctuation');
-    if (settings?.pauseOnLongWords) features?.push('Pause on Long Words');
-    if (settings?.showFocalPoint) features?.push('Focal Point');
-    if (settings?.smartHighlighting) features?.push('Smart Highlighting');
+    if (settings?.pauseOnPunctuation) features?.push("Pause on Punctuation");
+    if (settings?.pauseOnLongWords) features?.push("Pause on Long Words");
+    if (settings?.showFocalPoint) features?.push("Focal Point");
+    if (settings?.smartHighlighting) features?.push("Smart Highlighting");
     return features;
   };
 
@@ -76,7 +87,9 @@ const SettingsSummaryCard = ({ settings, onReset }) => {
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-xs text-muted-foreground">{item?.label}</p>
-              <p className="text-sm font-semibold text-foreground truncate">{item?.value}</p>
+              <p className="text-sm font-semibold text-foreground truncate">
+                {item?.value}
+              </p>
             </div>
           </div>
         ))}

@@ -1,10 +1,10 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import Icon from "../../../components/AppIcon";
 import Button from "../../../components/ui/Button";
-
-const OPENED_BOOKS_KEY = "speedReader:openedBooks";
+import { recordBookOpenedSnapshot } from "../../../utils/storage/indexedDb";
 
 const BookCard = ({ book }) => {
   const router = useRouter();
@@ -14,18 +14,9 @@ const BookCard = ({ book }) => {
     : 0;
 
   const handleReadClick = () => {
-    if (typeof window !== "undefined") {
-      try {
-        const existing = window.localStorage.getItem(OPENED_BOOKS_KEY);
-        const parsed = existing ? JSON.parse(existing) : {};
-        if (book?.id) {
-          parsed[book.id] = book;
-        }
-        window.localStorage.setItem(OPENED_BOOKS_KEY, JSON.stringify(parsed));
-      } catch (error) {
-        console.warn("Failed to cache opened book", error);
-      }
-    }
+    recordBookOpenedSnapshot(book).catch((error) => {
+      console.warn("Failed to cache opened book", error);
+    });
 
     const params = new URLSearchParams({
       bookId: book?.id ? String(book.id) : "",
@@ -60,12 +51,12 @@ const BookCard = ({ book }) => {
   return (
     <div className="group w-full bg-card rounded-lg md:rounded-xl border border-border/60 overflow-hidden hover:shadow-sm hover:border-border hover:border-primary/30 transition-all duration-300">
       <div className="relative w-full bg-muted/50 aspect-[3/4] overflow-hidden">
-        <img
+        <Image
           src={coverImageSrc}
           alt={coverImageAlt}
-          loading="lazy"
-          decoding="async"
-          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+          fill
+          sizes="(min-width: 1024px) 20vw, (min-width: 768px) 30vw, 80vw"
+          className="object-cover transition-transform duration-300 group-hover:scale-105"
           onError={(event) => {
             if (event?.currentTarget?.src !== fallbackCover) {
               event.currentTarget.src = fallbackCover;

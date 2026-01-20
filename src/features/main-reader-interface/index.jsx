@@ -6,14 +6,15 @@ import AppHeader from "../../components/navigation/AppHeader";
 import Button from "../../components/ui/Button";
 import Input from "../../components/ui/Input";
 import { remapGutenbergTextUrl } from "../../utils/gutenberg";
+import {
+  getLibraryBooksForUI,
+  upsertLibraryBooks,
+} from "../../utils/storage/indexedDb";
 import FileUploadZone from "./components/FileUploadZone";
 import LibrarySection from "./components/LibrarySection";
 import CategoryFilters from "./components/CategoryFilter";
 
 const TARGET_BOOK_COUNT = 10;
-const LIBRARY_STORAGE_KEY = "speedReader:libraryBooks";
-const BOOK_CONTENT_CACHE_PREFIX = "speedReader:bookContent:";
-const PROGRESS_STORAGE_PREFIX = "speedReader:progress:";
 
 const CATEGORIES = [
   { id: "science-fiction", keywords: ["science fiction"] },
@@ -85,61 +86,6 @@ const mapGutenbergBook = (book) => {
   };
 };
 
-const applyActualWordCounts = (bookList = []) => {
-  if (typeof window === "undefined" || !Array.isArray(bookList)) {
-    return bookList ?? [];
-  }
-
-  return bookList.map((book) => {
-    if (!book?.id) {
-      return { ...book, hasCachedContent: false, readProgress: 0 };
-    }
-
-    const cacheKey = `${BOOK_CONTENT_CACHE_PREFIX}${book.id}`;
-    const cachedContent = window.localStorage.getItem(cacheKey);
-    const progressKey = `${PROGRESS_STORAGE_PREFIX}${book.id}`;
-    const hasCachedContent = Boolean(
-      cachedContent && cachedContent.trim().length > 0,
-    );
-    let readProgress = 0;
-
-    if (!hasCachedContent) {
-      return { ...book, hasCachedContent: false, readProgress };
-    }
-
-    const totalWords = Math.max(
-      1,
-      cachedContent.trim().split(/\s+/)?.length ?? 1,
-    );
-
-    const progressRaw = window.localStorage.getItem(progressKey);
-    if (progressRaw) {
-      try {
-        const parsed = JSON.parse(progressRaw);
-        if (parsed?.totalWords > 0) {
-          readProgress = Math.min(
-            100,
-            Math.max(
-              0,
-              Math.round((parsed.currentWordIndex / parsed.totalWords) * 100),
-            ),
-          );
-        }
-      } catch (error) {
-        console.warn("Failed to parse reading progress", error);
-      }
-    }
-
-    return {
-      ...book,
-      hasCachedContent: true,
-      wordCount: totalWords,
-      estimatedTime: Math.max(1, Math.round(totalWords / 250)),
-      readProgress,
-    };
-  });
-};
-
 const MainReaderInterface = () => {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
@@ -163,16 +109,9 @@ const MainReaderInterface = () => {
 
       const payload = await response.json();
       const curatedBooks = (payload?.results ?? []).map(mapGutenbergBook);
-      const hydratedBooks = applyActualWordCounts(curatedBooks);
-
+      await upsertLibraryBooks(curatedBooks, { acquisitionType: "curated" });
+      const hydratedBooks = await getLibraryBooksForUI();
       setBooks(hydratedBooks);
-
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(
-          LIBRARY_STORAGE_KEY,
-          JSON.stringify(hydratedBooks),
-        );
-      }
     } catch (error) {
       console.error("Failed to load Project Gutenberg books", error);
       setFetchError(
@@ -184,29 +123,29 @@ const MainReaderInterface = () => {
   }, []);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    let isMounted = true;
 
-    const cachedBooks = window.localStorage.getItem(LIBRARY_STORAGE_KEY);
-
-    if (cachedBooks) {
+    const hydrateFromIndexedDb = async () => {
       try {
-        const parsed = JSON.parse(cachedBooks);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const hydratedBooks = applyActualWordCounts(parsed);
-          setBooks(hydratedBooks);
-          window.localStorage.setItem(
-            LIBRARY_STORAGE_KEY,
-            JSON.stringify(hydratedBooks),
-          );
+        const cachedBooks = await getLibraryBooksForUI();
+        if (isMounted && Array.isArray(cachedBooks) && cachedBooks.length > 0) {
+          setBooks(cachedBooks);
           setIsLoading(false);
           return;
         }
       } catch (error) {
-        console.warn("Failed to parse cached library", error);
+        console.error("Failed to load cached library", error);
       }
-    }
 
-    fetchBooks();
+      if (!isMounted) return;
+      fetchBooks();
+    };
+
+    hydrateFromIndexedDb();
+
+    return () => {
+      isMounted = false;
+    };
   }, [fetchBooks]);
 
   const handleFileUpload = (file) => {
