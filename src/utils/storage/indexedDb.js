@@ -172,11 +172,11 @@ const countWords = (text = "") => {
 const normalizeBookId = (bookId) =>
   bookId !== undefined && bookId !== null ? String(bookId) : undefined;
 
-const generateLocalBookId = () => {
+const generateLocalBookId = (prefix = "clipboard") => {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return `clipboard-${crypto.randomUUID()}`;
+    return `${prefix}-${crypto.randomUUID()}`;
   }
-  return `clipboard-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 };
 
 const mergeSnapshotWithLibrary = (entry) => {
@@ -424,7 +424,7 @@ export const createClipboardBook = async ({ title, content, author = "Clipboard 
   }
 
   const bookTitle = title?.trim() || "Untitled Paste";
-  const bookId = generateLocalBookId();
+  const bookId = generateLocalBookId("clipboard");
   const wordCountActual = countWords(normalizedContent);
   const estimatedMinutes = Math.max(1, Math.round(wordCountActual / 250));
 
@@ -446,6 +446,50 @@ export const createClipboardBook = async ({ title, content, author = "Clipboard 
   await upsertLibraryBooks([snapshot], { acquisitionType: "clipboard" });
   await saveBookContentToStore(bookId, normalizedContent, {
     fetchedVia: "clipboard",
+    bookSnapshot: snapshot,
+  });
+
+  const entry = await getLibraryEntry(bookId);
+  return mergeSnapshotWithLibrary(entry) ?? snapshot;
+};
+
+export const createUploadedBook = async ({
+  title,
+  content,
+  author = "Uploaded File",
+  category = "uploads",
+  sourceType = "upload",
+  fileName = null,
+}) => {
+  const normalizedContent = content?.trim();
+  if (!normalizedContent) {
+    throw new Error("Uploaded content cannot be empty.");
+  }
+
+  const bookTitle = title?.trim() || fileName?.trim() || "Untitled Upload";
+  const bookId = generateLocalBookId("upload");
+  const wordCountActual = countWords(normalizedContent);
+  const estimatedMinutes = Math.max(1, Math.round(wordCountActual / 250));
+
+  const snapshot = {
+    id: bookId,
+    title: bookTitle,
+    author: author?.trim() || "Uploaded File",
+    sourceType,
+    category,
+    wordCount: wordCountActual,
+    estimatedTime: estimatedMinutes,
+    hasCachedContent: true,
+    readProgress: 0,
+    textUrl: null,
+    coverImage: null,
+    coverImageAlt: `Upload entry for ${bookTitle}`,
+    fileName,
+  };
+
+  await upsertLibraryBooks([snapshot], { acquisitionType: "upload" });
+  await saveBookContentToStore(bookId, normalizedContent, {
+    fetchedVia: sourceType,
     bookSnapshot: snapshot,
   });
 

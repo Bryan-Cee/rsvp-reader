@@ -2,7 +2,14 @@ import { useState, useRef } from "react";
 import Icon from "../../../components/AppIcon";
 import Button from "../../../components/ui/Button";
 import Input from "../../../components/ui/Input";
-import { createClipboardBook } from "../../../utils/storage/indexedDb";
+import {
+  createClipboardBook,
+  createUploadedBook,
+} from "../../../utils/storage/indexedDb";
+import {
+  parseUploadedFile,
+  supportedUploadExtensions,
+} from "../../../utils/fileParsers";
 
 const tabs = [
   { id: "upload", label: "Upload file", icon: "Upload" },
@@ -19,6 +26,8 @@ const FileUploadZone = ({ onFileUpload, onBookCreated }) => {
   const [pasteContent, setPasteContent] = useState("");
   const [pasteError, setPasteError] = useState("");
   const [isSavingPaste, setIsSavingPaste] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+  const [uploadingFileName, setUploadingFileName] = useState("");
 
   const supportedFormats = [
     { extension: ".txt", label: "TXT", icon: "FileText" },
@@ -30,6 +39,7 @@ const FileUploadZone = ({ onFileUpload, onBookCreated }) => {
   const handleDragEnter = (e) => {
     e?.preventDefault();
     e?.stopPropagation();
+    if (isUploading) return;
     setIsDragging(true);
   };
 
@@ -47,6 +57,7 @@ const FileUploadZone = ({ onFileUpload, onBookCreated }) => {
   const handleDrop = (e) => {
     e?.preventDefault();
     e?.stopPropagation();
+    if (isUploading) return;
     setIsDragging(false);
 
     const files = e?.dataTransfer?.files;
@@ -60,39 +71,54 @@ const FileUploadZone = ({ onFileUpload, onBookCreated }) => {
     if (files && files?.length > 0) {
       handleFileProcess(files?.[0]);
     }
+    if (e?.target) {
+      e.target.value = "";
+    }
   };
 
-  const handleFileProcess = (file) => {
-    const validExtensions = [".txt", ".md", ".pdf", ".epub"];
+  const handleFileProcess = async (file) => {
     const fileExtension = "." + file?.name?.split(".")?.pop()?.toLowerCase();
 
-    if (!validExtensions?.includes(fileExtension)) {
-      alert("Please upload a valid file format (TXT, Markdown, PDF, or EPUB)");
+    if (!supportedUploadExtensions.includes(fileExtension)) {
+      setUploadError("Please upload a TXT, Markdown, PDF, or EPUB file.");
       return;
     }
 
     setIsUploading(true);
-    setUploadProgress(0);
+    setUploadError("");
+    setUploadingFileName(file?.name ?? "");
+    setUploadProgress(6);
 
-    const progressInterval = setInterval(() => {
-      setUploadProgress((prev) => {
-        if (prev >= 100) {
-          clearInterval(progressInterval);
-          setTimeout(() => {
-            setIsUploading(false);
-            setUploadProgress(0);
-            if (onFileUpload) {
-              onFileUpload(file);
-            }
-          }, 500);
-          return 100;
-        }
-        return prev + 10;
+    try {
+      const parsed = await parseUploadedFile(file);
+      setUploadProgress(55);
+
+      const created = await createUploadedBook({
+        title: parsed.title,
+        author: parsed.author,
+        content: parsed.content,
+        category: parsed.suggestedCategory,
+        sourceType: parsed.sourceType,
+        fileName: parsed.fileName,
       });
-    }, 100);
+
+      setUploadProgress(100);
+      onFileUpload?.(created);
+      await onBookCreated?.();
+    } catch (error) {
+      console.error("Failed to process upload", error);
+      setUploadError(error?.message ?? "Unable to process this file.");
+    } finally {
+      setTimeout(() => {
+        setIsUploading(false);
+        setUploadProgress(0);
+        setUploadingFileName("");
+      }, 350);
+    }
   };
 
   const handleBrowseClick = () => {
+    if (isUploading) return;
     fileInputRef?.current?.click();
   };
 
@@ -186,7 +212,14 @@ const FileUploadZone = ({ onFileUpload, onBookCreated }) => {
                 iconPosition="left"
                 className="w-full sm:w-auto"
                 aria-pressed={activeTab === tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => {
+                  setActiveTab(tab.id);
+                  if (tab.id === "upload") {
+                    setPasteError("");
+                  } else {
+                    setUploadError("");
+                  }
+                }}
               >
                 {tab.label}
               </Button>
@@ -231,7 +264,9 @@ const FileUploadZone = ({ onFileUpload, onBookCreated }) => {
             {isUploading ? (
               <div className="w-full max-w-md space-y-3">
                 <p className="text-base md:text-lg font-medium text-foreground">
-                  Parsing your content...
+                  {uploadingFileName
+                    ? `Importing ${uploadingFileName}`
+                    : "Parsing your content..."}
                 </p>
                 <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
                   <div
@@ -272,6 +307,12 @@ const FileUploadZone = ({ onFileUpload, onBookCreated }) => {
                     </div>
                   ))}
                 </div>
+
+                {uploadError && (
+                  <p className="text-sm text-destructive" role="status">
+                    {uploadError}
+                  </p>
+                )}
               </>
             )}
           </div>

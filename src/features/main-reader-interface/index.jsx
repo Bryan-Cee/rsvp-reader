@@ -157,8 +157,14 @@ const MainReaderInterface = () => {
     };
   }, [fetchBooks]);
 
-  const handleFileUpload = (file) => {
-    console.log("File uploaded:", file?.name);
+  const handleFileUpload = (createdBook) => {
+    if (!createdBook) return;
+    setBooks((prevBooks = []) => {
+      const filtered = prevBooks.filter(
+        (book) => String(book?.id) !== String(createdBook?.id),
+      );
+      return [createdBook, ...filtered];
+    });
   };
 
   const handleSearchChange = (e) => {
