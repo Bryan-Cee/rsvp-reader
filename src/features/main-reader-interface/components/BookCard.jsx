@@ -1,8 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import Icon from "../../../components/AppIcon";
+import AppImage from "../../../components/AppImage";
 import Button from "../../../components/ui/Button";
 import { recordBookOpenedSnapshot } from "../../../utils/storage/indexedDb";
 
@@ -51,17 +51,13 @@ const BookCard = ({ book }) => {
   return (
     <div className="group w-full bg-card rounded-lg md:rounded-xl border border-border/60 overflow-hidden hover:shadow-sm hover:border-border hover:border-primary/30 transition-all duration-300">
       <div className="relative w-full bg-muted/50 aspect-[3/4] overflow-hidden">
-        <Image
+        <AppImage
           src={coverImageSrc}
           alt={coverImageAlt}
           fill
           sizes="(min-width: 1024px) 20vw, (min-width: 768px) 30vw, 80vw"
           className="object-cover transition-transform duration-300 group-hover:scale-105"
-          onError={(event) => {
-            if (event?.currentTarget?.src !== fallbackCover) {
-              event.currentTarget.src = fallbackCover;
-            }
-          }}
+          priority
         />
       </div>
       <div className="p-4 md:p-5 space-y-3">
