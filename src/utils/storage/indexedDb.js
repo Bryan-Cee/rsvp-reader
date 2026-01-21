@@ -185,6 +185,7 @@ const mergeSnapshotWithLibrary = (entry) => {
   return {
     ...snapshot,
     id: snapshot.id ?? entry.bookId,
+    acquisitionType: entry?.acquisitionType ?? "curated",
     hasCachedContent: Boolean(entry.hasDownloaded),
     readProgress: entry.readProgress ?? 0,
     wordCount: localWordCount,
@@ -407,6 +408,35 @@ export const recordBookOpenedSnapshot = async (book) => {
   };
 
   return putValue(STORE_NAMES.library, payload);
+};
+
+export const deleteLibraryBook = async (bookId) => {
+  const normalized = normalizeBookId(bookId);
+  if (!normalized) return false;
+  const db = await openDatabase();
+  if (!db) return false;
+
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(
+      [
+        STORE_NAMES.library,
+        STORE_NAMES.books,
+        STORE_NAMES.bookContents,
+        STORE_NAMES.readingProgress,
+      ],
+      "readwrite",
+    );
+
+    tx.objectStore(STORE_NAMES.library).delete(normalized);
+    tx.objectStore(STORE_NAMES.books).delete(normalized);
+    tx.objectStore(STORE_NAMES.bookContents).delete(normalized);
+    tx.objectStore(STORE_NAMES.readingProgress).delete(normalized);
+
+    tx.oncomplete = () => resolve(true);
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () =>
+      reject(tx.error ?? new Error("Failed to delete library book"));
+  });
 };
 
 const summarizeBookContents = async () => {

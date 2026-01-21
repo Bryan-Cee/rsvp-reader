@@ -71,6 +71,7 @@ const mapGutenbergBook = (book) => {
 
   return {
     id: book?.id,
+    sourceType: "gutenberg",
     title: book?.title,
     author: book?.authors?.[0]?.name ?? "Unknown Author",
     coverImage: book?.cover_image ?? book?.formats?.["image/jpeg"],
@@ -170,6 +171,13 @@ const MainReaderInterface = () => {
     }
   };
 
+  const handleBookRemoved = useCallback((bookId) => {
+    if (!bookId) return;
+    setBooks((prevBooks = []) =>
+      prevBooks.filter((book) => String(book?.id) !== String(bookId)),
+    );
+  }, []);
+
   return (
     <div className="min-h-screen bg-background">
       <AppHeader
@@ -220,6 +228,7 @@ const MainReaderInterface = () => {
             isLoading={isLoading}
             error={fetchError}
             onRetry={handleRetry}
+            onBookRemoved={handleBookRemoved}
           />
         </section>
       </main>
