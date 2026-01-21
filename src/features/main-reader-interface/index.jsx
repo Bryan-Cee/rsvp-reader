@@ -95,6 +95,15 @@ const MainReaderInterface = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
 
+  const refreshLibraryFromIndexedDb = useCallback(async () => {
+    try {
+      const hydratedBooks = await getLibraryBooksForUI();
+      setBooks(hydratedBooks);
+    } catch (error) {
+      console.error("Failed to refresh cached library", error);
+    }
+  }, []);
+
   const fetchBooks = useCallback(async () => {
     setIsLoading(true);
     setFetchError(null);
@@ -111,8 +120,7 @@ const MainReaderInterface = () => {
       const payload = await response.json();
       const curatedBooks = (payload?.results ?? []).map(mapGutenbergBook);
       await upsertLibraryBooks(curatedBooks, { acquisitionType: "curated" });
-      const hydratedBooks = await getLibraryBooksForUI();
-      setBooks(hydratedBooks);
+      await refreshLibraryFromIndexedDb();
     } catch (error) {
       console.error("Failed to load Project Gutenberg books", error);
       setFetchError(
@@ -121,7 +129,7 @@ const MainReaderInterface = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [refreshLibraryFromIndexedDb]);
 
   useEffect(() => {
     let isMounted = true;
@@ -193,7 +201,10 @@ const MainReaderInterface = () => {
       />
       <main className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-6 md:py-8 lg:py-12 space-y-6 md:space-y-8 lg:space-y-12">
         <section>
-          <FileUploadZone onFileUpload={handleFileUpload} />
+          <FileUploadZone
+            onFileUpload={handleFileUpload}
+            onBookCreated={refreshLibraryFromIndexedDb}
+          />
         </section>
 
         <section className="space-y-4 md:space-y-6">
@@ -229,6 +240,7 @@ const MainReaderInterface = () => {
             error={fetchError}
             onRetry={handleRetry}
             onBookRemoved={handleBookRemoved}
+            onBookUpdated={refreshLibraryFromIndexedDb}
           />
         </section>
       </main>

@@ -6,6 +6,7 @@ import AppHeader from "../../components/navigation/AppHeader";
 import QuickAccessControls from "../../components/navigation/QuickAccessControls";
 import SettingsModal from "../../components/navigation/SettingsModal";
 import Button from "../../components/ui/Button";
+import Icon from "../../components/AppIcon";
 import RSVPDisplay from "./components/RSVPDisplay";
 import PlaybackControls from "./components/PlaybackControls";
 import ControlPanel from "./components/ControlPanel";
@@ -331,6 +332,19 @@ const RSVPReaderView = () => {
   }, [bookData?.content]);
 
   const totalWords = bookData?.totalWords ?? words?.length ?? 0;
+  const currentWordPosition = Math.min(
+    totalWords,
+    (readingState?.currentWordIndex ?? 0) + 1,
+  );
+  const wordsRemaining = Math.max(0, totalWords - currentWordPosition);
+  const safeReadingSpeed = Math.max(
+    1,
+    readingState?.readingSpeed ?? DEFAULT_READER_SETTINGS.readingSpeed,
+  );
+  const estimatedMinutesRemaining = Math.max(
+    1,
+    Math.round(wordsRemaining / safeReadingSpeed),
+  );
 
   const currentWord = useMemo(() => {
     if (!words?.length) return "";
@@ -346,6 +360,23 @@ const RSVPReaderView = () => {
     totalWords > 0 ? (readingState?.currentWordIndex / totalWords) * 100 : 0;
   const loadingBookTitle =
     bookMeta?.title || searchParams?.get("bookTitle") || bookData?.title;
+  const displayTitle =
+    bookMeta?.title ||
+    searchParams?.get("bookTitle") ||
+    bookData?.title ||
+    "Untitled selection";
+  const displayAuthor =
+    bookMeta?.author ||
+    searchParams?.get("bookAuthor") ||
+    bookData?.author ||
+    "Unknown author";
+
+  const formattedCurrentWord = Number.isFinite(currentWordPosition)
+    ? currentWordPosition.toLocaleString()
+    : "--";
+  const formattedTotalWords = Number.isFinite(totalWords)
+    ? totalWords.toLocaleString()
+    : "--";
 
   useEffect(() => {
     applyThemeFromSettings(readingState?.theme);
@@ -668,7 +699,38 @@ const RSVPReaderView = () => {
           },
         ]}
       />
-      <main className="flex-1 flex flex-col pt-16 md:pt-20">
+      <main className="flex-1 flex flex-col">
+        <section className="border-b border-border/60 bg-background/95 px-4 py-4">
+          <div className="flex items-start gap-3">
+            <Button
+              type="button"
+              variant="primary"
+              size="icon"
+              iconName="ArrowLeft"
+              aria-label="Back to library"
+              onClick={handleNavigateHome}
+              className="text-foreground hover:text-primary hover:bg-muted"
+            />
+            <div className="flex justify-between flex-1">
+              <div>
+                <p className="mt-1 text-medium font-semibold text-foreground leading-tight">
+                  {displayTitle}
+                </p>
+                <p className="text-sm text-muted-foreground">{displayAuthor}</p>
+              </div>
+
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs md:text-sm text-muted-foreground">
+                <span>
+                  {formattedCurrentWord} / {formattedTotalWords} words
+                </span>
+                <span className="text-muted-foreground/70">·</span>
+                <span>
+                  ~{estimatedMinutesRemaining.toLocaleString()} min left
+                </span>
+              </div>
+            </div>
+          </div>
+        </section>
         <RSVPDisplay
           currentWord={currentWord}
           wordsPerFrame={readingState?.wordsPerFrame}

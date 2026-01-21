@@ -172,6 +172,13 @@ const countWords = (text = "") => {
 const normalizeBookId = (bookId) =>
   bookId !== undefined && bookId !== null ? String(bookId) : undefined;
 
+const generateLocalBookId = () => {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return `clipboard-${crypto.randomUUID()}`;
+  }
+  return `clipboard-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+};
+
 const mergeSnapshotWithLibrary = (entry) => {
   if (!entry) return null;
   const snapshot = entry.bookSnapshot ?? {};
@@ -408,6 +415,93 @@ export const recordBookOpenedSnapshot = async (book) => {
   };
 
   return putValue(STORE_NAMES.library, payload);
+};
+
+export const createClipboardBook = async ({ title, content, author = "Clipboard Import" }) => {
+  const normalizedContent = content?.trim();
+  if (!normalizedContent) {
+    throw new Error("Pasted content cannot be empty.");
+  }
+
+  const bookTitle = title?.trim() || "Untitled Paste";
+  const bookId = generateLocalBookId();
+  const wordCountActual = countWords(normalizedContent);
+  const estimatedMinutes = Math.max(1, Math.round(wordCountActual / 250));
+
+  const snapshot = {
+    id: bookId,
+    title: bookTitle,
+    author: author?.trim() || "Clipboard Import",
+    sourceType: "clipboard",
+    category: "quick-reads",
+    wordCount: wordCountActual,
+    estimatedTime: estimatedMinutes,
+    hasCachedContent: true,
+    readProgress: 0,
+    textUrl: null,
+    coverImage: null,
+    coverImageAlt: `Clipboard entry for ${bookTitle}`,
+  };
+
+  await upsertLibraryBooks([snapshot], { acquisitionType: "clipboard" });
+  await saveBookContentToStore(bookId, normalizedContent, {
+    fetchedVia: "clipboard",
+    bookSnapshot: snapshot,
+  });
+
+  const entry = await getLibraryEntry(bookId);
+  return mergeSnapshotWithLibrary(entry) ?? snapshot;
+};
+
+export const updateClipboardBook = async ({ bookId, title, content }) => {
+  const normalizedId = normalizeBookId(bookId);
+  if (!normalizedId) {
+    throw new Error("Invalid book id provided.");
+  }
+
+  const existingEntry = await getLibraryEntry(normalizedId);
+  if (!existingEntry) {
+    throw new Error("Unable to find this pasted book on your device.");
+  }
+
+  const existingSnapshot = existingEntry.bookSnapshot ?? {};
+  const acquisition = existingEntry.acquisitionType ?? existingSnapshot.sourceType;
+  const isClipboardSource =
+    acquisition === "clipboard" || existingSnapshot?.sourceType === "clipboard";
+  if (!isClipboardSource) {
+    throw new Error("Only pasted books can be edited.");
+  }
+
+  const normalizedContent = content?.trim();
+  if (!normalizedContent) {
+    throw new Error("Updated content cannot be empty.");
+  }
+
+  const nextTitle = title?.trim() || existingSnapshot.title || "Untitled Paste";
+  const wordCountActual = countWords(normalizedContent);
+  const estimatedMinutes = Math.max(1, Math.round(wordCountActual / 250));
+
+  const updatedSnapshot = {
+    ...existingSnapshot,
+    id: normalizedId,
+    title: nextTitle,
+    author: existingSnapshot.author ?? "Clipboard Import",
+    sourceType: "clipboard",
+    wordCount: wordCountActual,
+    estimatedTime: estimatedMinutes,
+    hasCachedContent: true,
+    coverImage: existingSnapshot.coverImage ?? null,
+    coverImageAlt:
+      existingSnapshot.coverImageAlt ?? `Clipboard entry for ${nextTitle}`,
+  };
+
+  await saveBookContentToStore(normalizedId, normalizedContent, {
+    fetchedVia: "clipboard-edit",
+    bookSnapshot: updatedSnapshot,
+  });
+
+  const updatedEntry = await getLibraryEntry(normalizedId);
+  return mergeSnapshotWithLibrary(updatedEntry) ?? updatedSnapshot;
 };
 
 export const deleteLibraryBook = async (bookId) => {

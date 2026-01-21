@@ -11,6 +11,7 @@ const LibrarySection = ({
   error = null,
   onRetry,
   onBookRemoved,
+  onBookUpdated,
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
@@ -35,6 +36,7 @@ const LibrarySection = ({
           key={book?.id ?? book?.title}
           book={book}
           onRemove={onBookRemoved}
+          onUpdated={onBookUpdated}
         />
       ))}
     </div>
